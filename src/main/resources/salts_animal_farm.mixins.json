@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.betterLostItems.salts_animal_farm.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AnimalMixin",
+    "LivingEntityLootMixin",
+    "MobMixin",
+    "WalkNodeEvaluatorMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

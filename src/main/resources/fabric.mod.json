@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "salts_animal_farm",
+  "version": "${version}",
+  "name": "Salt's Animal Farm",
+  "description": "This mod changes the lighting to be more logical",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/salts_animal_farm/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-datagen": [
+      "org.betterLostItems.salts_animal_farm.client.Salts_animal_farmDataGenerator"
+    ],
+    "client": [
+      "org.betterLostItems.salts_animal_farm.client.Salts_animal_farmClient"
+    ],
+    "main": [
+      "org.betterLostItems.salts_animal_farm.Salts_animal_farm"
+    ]
+  },
+  "mixins": [
+    "salts_animal_farm.mixins.json",
+    {
+      "config": "salts_animal_farm.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
