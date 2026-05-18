@@ -58,7 +58,7 @@ public final class AnimalFarmDebugCommands {
                                 .then(Commands.argument("amount", IntegerArgumentType.integer(1))
                                         .executes(context -> changeLookedAtWeight(context, WeightMode.ADD, IntegerArgumentType.getInteger(context, "amount")))))
                         .then(Commands.literal("set")
-                                .then(Commands.argument("value", IntegerArgumentType.integer(WeightedFarmAnimal.MIN_WEIGHT, WeightedFarmAnimal.MAX_WEIGHT))
+                                .then(Commands.argument("value", IntegerArgumentType.integer())
                                         .executes(context -> changeLookedAtWeight(context, WeightMode.SET, IntegerArgumentType.getInteger(context, "value")))))
                         .then(Commands.literal("subtract")
                                 .executes(context -> changeLookedAtWeight(context, WeightMode.SUBTRACT, 1))

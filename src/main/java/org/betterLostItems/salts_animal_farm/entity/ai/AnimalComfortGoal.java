@@ -2,7 +2,9 @@ package org.betterLostItems.salts_animal_farm.entity.ai;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,6 +22,7 @@ import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
 import org.betterLostItems.salts_animal_farm.entity.AnimalWeatherComfort;
 import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
+import org.betterLostItems.salts_animal_farm.mixin.LivingEntitySoundAccessor;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -128,7 +131,7 @@ public class AnimalComfortGoal extends Goal {
 
         if (task == null) {
             debug("canUse=false reason=unknown_task rawTask='" + forcedTaskName + "' -> recording failure");
-            weightedAnimal.salts_animal_farm$recordComfortFailure();
+            recordTaskFailure();
             return false;
         }
 
@@ -153,7 +156,7 @@ public class AnimalComfortGoal extends Goal {
                 scheduleNextRainCoverAttempt();
             } else {
                 debug(() -> "canUse=false reason=no_target_found task=" + task.taskName() + " -> recording failure currentCheck={" + taskCheckDetails(task, currentPos) + "}");
-                weightedAnimal.salts_animal_farm$recordComfortFailure();
+                recordTaskFailure();
             }
             return false;
         }
@@ -234,7 +237,11 @@ public class AnimalComfortGoal extends Goal {
                             + " targetCompletion=" + targetCompletion
                             + " currentCheck={" + taskCheckDetails(activeTask, currentPos) + "}"
                             + " targetCheck={" + taskCheckDetails(activeTask, targetPos) + "}");
-                    recordTaskSuccess("interrupted_while_satisfied");
+                    if (activeTask == ComfortTask.COVER) {
+                        recordNeutralTaskCompletion("interrupted_while_satisfied");
+                    } else {
+                        recordTaskSuccess("interrupted_while_satisfied");
+                    }
                 } else {
                     debug(() -> "stop interrupted task before linger but condition is satisfied -> neutral stop task=" + activeTask.taskName()
                             + " target=" + posString(targetPos)
@@ -293,7 +300,7 @@ public class AnimalComfortGoal extends Goal {
                         + " targetCompletion=" + targetCompletion
                         + " currentCheck={" + taskCheckDetails(activeTask, currentPos) + "}"
                         + " targetCheck={" + taskCheckDetails(activeTask, targetPos) + "}");
-                weightedAnimal.salts_animal_farm$recordComfortFailure();
+                recordTaskFailure();
             }
         } else {
             debug("stop without failure activeTask=" + taskNameOrNull()
@@ -905,6 +912,7 @@ public class AnimalComfortGoal extends Goal {
                 + " weight=" + weightedAnimal.salts_animal_farm$getWeight()
                 + " streak=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                 + " rainExposureTicks=" + weightedAnimal.salts_animal_farm$getRainExposureTicks());
+        playTaskSuccessFeedback();
         weightedAnimal.salts_animal_farm$setLastComfortTaskResult("Covered");
         weightedAnimal.salts_animal_farm$setCurrentComfortTask("");
     }
@@ -919,9 +927,51 @@ public class AnimalComfortGoal extends Goal {
                 + " streakBefore=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                 + " totalSuccessBefore=" + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks());
         weightedAnimal.salts_animal_farm$recordComfortSuccess();
+        playTaskSuccessFeedback();
         debug("completeTask recorded success weightAfter=" + weightedAnimal.salts_animal_farm$getWeight()
                 + " streakAfter=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                 + " totalSuccessAfter=" + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks());
+    }
+
+    private void recordTaskFailure() {
+        weightedAnimal.salts_animal_farm$recordComfortFailure();
+        playTaskFailureFeedback();
+    }
+
+    private void playTaskSuccessFeedback() {
+        if (animal.level() instanceof ServerLevel level) {
+            level.sendParticles(
+                    ParticleTypes.HAPPY_VILLAGER,
+                    animal.getX(),
+                    animal.getY() + animal.getBbHeight() + 0.25D,
+                    animal.getZ(),
+                    8,
+                    0.35D,
+                    0.25D,
+                    0.35D,
+                    0.02D
+            );
+        }
+
+        animal.playAmbientSound();
+    }
+
+    private void playTaskFailureFeedback() {
+        if (animal.level() instanceof ServerLevel level) {
+            level.sendParticles(
+                    ParticleTypes.ANGRY_VILLAGER,
+                    animal.getX(),
+                    animal.getY() + animal.getBbHeight() + 0.25D,
+                    animal.getZ(),
+                    6,
+                    0.25D,
+                    0.2D,
+                    0.25D,
+                    0.01D
+            );
+        }
+
+        animal.makeSound(((LivingEntitySoundAccessor) animal).salts_animal_farm$getHurtSound(animal.damageSources().generic()));
     }
 
     private void scheduleNextAttempt() {

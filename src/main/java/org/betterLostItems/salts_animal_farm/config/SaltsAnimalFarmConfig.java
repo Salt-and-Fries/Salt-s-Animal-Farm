@@ -20,6 +20,8 @@ public record SaltsAnimalFarmConfig(
         List<String> scaryMobs,
         @SerializedName("Soft Blocks")
         List<String> softBlocks,
+        int minimumWeight,
+        int maximumWeight,
         int comfortTaskAverageDelayTicks,
         int comfortTaskDelayJitterTicks,
         int comfortSearchRadius,
@@ -48,13 +50,7 @@ public record SaltsAnimalFarmConfig(
                     "minecraft:pig",
                     "minecraft:sheep",
                     "minecraft:chicken",
-                    "minecraft:goat",
-                    "minecraft:rabbit",
-                    "minecraft:horse",
-                    "minecraft:donkey",
-                    "minecraft:mule",
-                    "minecraft:llama",
-                    "minecraft:camel"
+                    "minecraft:rabbit"
             ),
             List.of(
                     "#minecraft:skeletons",
@@ -80,8 +76,10 @@ public record SaltsAnimalFarmConfig(
                     "minecraft:pale_moss_block",
                     "minecraft:pale_moss_carpet"
             ),
-            8000,
+            1,
+            8,
             4000,
+            2000,
             12,
             4,
             28,
@@ -139,10 +137,17 @@ public record SaltsAnimalFarmConfig(
     }
 
     private SaltsAnimalFarmConfig sanitized() {
+        int sanitizedMinimumWeight = Math.max(minimumWeight, 0);
+        int sanitizedMaximumWeight = maximumWeight <= sanitizedMinimumWeight
+                ? Math.max(DEFAULT.maximumWeight, sanitizedMinimumWeight)
+                : maximumWeight;
+
         return new SaltsAnimalFarmConfig(
                 sanitizedList(farmAnimals, DEFAULT.farmAnimals),
                 sanitizedList(scaryMobs, DEFAULT.scaryMobs),
                 sanitizedList(softBlocks, DEFAULT.softBlocks),
+                sanitizedMinimumWeight,
+                sanitizedMaximumWeight,
                 atLeast(comfortTaskAverageDelayTicks, 200),
                 Math.max(comfortTaskDelayJitterTicks, 0),
                 atLeast(comfortSearchRadius, 2),

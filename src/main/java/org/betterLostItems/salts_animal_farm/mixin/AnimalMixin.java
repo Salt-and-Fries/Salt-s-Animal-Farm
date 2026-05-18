@@ -5,6 +5,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.entity.AnimalWeatherComfort;
 import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
@@ -124,7 +125,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
 
     @Override
     public void salts_animal_farm$setWeight(int weight) {
-        salts_animal_farm$weight = Mth.clamp(weight, MIN_WEIGHT, MAX_WEIGHT);
+        salts_animal_farm$weight = Mth.clamp(weight, Salts_animal_farm.CONFIG.minimumWeight(), Salts_animal_farm.CONFIG.maximumWeight());
     }
 
     @Override

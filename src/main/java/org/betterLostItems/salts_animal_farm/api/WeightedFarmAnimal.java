@@ -1,9 +1,6 @@
 package org.betterLostItems.salts_animal_farm.api;
 
 public interface WeightedFarmAnimal {
-    int MIN_WEIGHT = 0;
-    int MAX_WEIGHT = 8;
-
     int salts_animal_farm$getWeight();
 
     void salts_animal_farm$setWeight(int weight);

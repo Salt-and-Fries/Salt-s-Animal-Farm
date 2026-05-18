@@ -1,5 +1,7 @@
 # Salt's Animal Farm Features
 
+Idea was created by Reddit user [u/Axoladdy](https://www.reddit.com/user/Axoladdy/).
+
 This mod does not add new blocks, items, entities, recipes, biomes, or dimensions. It changes farm animal behavior, animal rewards, weather reactions, fear reactions, and adds debug tools for testing those systems.
 
 ## Farm Animal Weight
@@ -23,13 +25,7 @@ Default configured farm animals:
 - `minecraft:pig`
 - `minecraft:sheep`
 - `minecraft:chicken`
-- `minecraft:goat`
 - `minecraft:rabbit`
-- `minecraft:horse`
-- `minecraft:donkey`
-- `minecraft:mule`
-- `minecraft:llama`
-- `minecraft:camel`
 
 ## Comfort Tasks
 
@@ -37,8 +33,8 @@ Farm animals periodically try comfort tasks. While a comfort task is active, mos
 
 Default timing:
 
-- Average task delay: `8000` ticks.
-- Delay jitter: `4000` ticks.
+- Average task delay: `4000` ticks.
+- Delay jitter: `2000` ticks.
 - Search radius: `12` blocks.
 - Vertical search: `4` blocks.
 - Random search samples: `28`.
@@ -79,18 +75,18 @@ Default soft blocks:
 
 ## Rain And Cover
 
-Cows and mooshrooms have special rain behavior.
+This is also special rain behavior.
 
-- When it is raining in a biome that supports rain, exposed cows and mooshrooms urgently try the `cover` task.
+- When it is raining in a biome that supports rain, exposed animals urgently try the `cover` task.
 - Deserts and other non-rain biomes do not trigger rain cover behavior.
 - Cover means the animal's full body footprint is out of falling rain.
 - Cover targets must be dry, non-water standing spots.
 - Cover search prefers deeper shelter instead of shallow roof edges.
 - Cover target paths must reach the actual target block, not just somewhere near it.
-- If a cow stops while still exposed, it retargets to deeper reachable cover.
+- If an animal stops while still exposed, it retargets to deeper reachable cover.
 - Completing `cover` is neutral: it stops rain exposure but does not grant normal comfort success or weight.
 - While raining, `space` is removed from the normal task pool so animals do not punish themselves for crowding under shelter.
-- If a cow or mooshroom stays exposed to rain for `2400` ticks, about 2 minutes, it loses `1` weight.
+- If an animal stays exposed to rain for `2400` ticks, about 2 minutes, it loses `1` weight.
 
 Once an animal is fully covered during rain, vanilla pathfinding treats exposed rain blocks as blocked for that animal. This keeps sheltered animals on dry paths while still allowing them to move inside cover. This restriction turns off if the animal is hurt, frantic, or can see a scary mob.
 

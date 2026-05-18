@@ -1,7 +1,6 @@
 package org.betterLostItems.salts_animal_farm.entity;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -13,15 +12,7 @@ public final class AnimalWeatherComfort {
     private AnimalWeatherComfort() {
     }
 
-    public static boolean isCowLike(Animal animal) {
-        return animal.getType() == EntityType.COW || animal.getType() == EntityType.MOOSHROOM;
-    }
-
     public static boolean shouldSeekRainCover(Animal animal) {
-        if (!isCowLike(animal)) {
-            return false;
-        }
-
         Level level = animal.level();
         return level.isRaining()
                 && level.precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN
