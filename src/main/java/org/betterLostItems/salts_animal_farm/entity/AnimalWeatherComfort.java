@@ -18,7 +18,14 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean shouldSeekRainCover(Animal animal) {
-        return isCowLike(animal) && isRainingInRainBiome(animal) && !isFullyCovered(animal);
+        if (!isCowLike(animal)) {
+            return false;
+        }
+
+        Level level = animal.level();
+        return level.isRaining()
+                && level.precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN
+                && !isFullyCovered(animal);
     }
 
     public static boolean isRainingInRainBiome(Animal animal) {
@@ -26,13 +33,21 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean isRainFallingAt(Level level, BlockPos pos) {
-        return level.isRaining()
+        return isRainFallingAt(level, pos, level.isRaining());
+    }
+
+    private static boolean isRainFallingAt(Level level, BlockPos pos, boolean raining) {
+        return raining
                 && level.precipitationAt(pos) == Biome.Precipitation.RAIN
                 && (level.canSeeSky(pos.above()) || level.canSeeSky(pos.above(2)));
     }
 
     public static boolean isCoveredAt(Level level, BlockPos pos) {
         return !isRainFallingAt(level, pos);
+    }
+
+    private static boolean isCoveredAt(Level level, BlockPos pos, boolean raining) {
+        return !isRainFallingAt(level, pos, raining);
     }
 
     public static boolean isFullyCovered(Animal animal) {
@@ -51,10 +66,11 @@ public final class AnimalWeatherComfort {
         }
 
         Level level = animal.level();
-        return isCoveredAt(level, BlockPos.containing(minX, y, minZ))
-                && isCoveredAt(level, BlockPos.containing(minX, y, maxZ))
-                && isCoveredAt(level, BlockPos.containing(maxX, y, minZ))
-                && isCoveredAt(level, BlockPos.containing(maxX, y, maxZ))
-                && isCoveredAt(level, animal.blockPosition());
+        boolean raining = level.isRaining();
+        return isCoveredAt(level, BlockPos.containing(minX, y, minZ), raining)
+                && isCoveredAt(level, BlockPos.containing(minX, y, maxZ), raining)
+                && isCoveredAt(level, BlockPos.containing(maxX, y, minZ), raining)
+                && isCoveredAt(level, BlockPos.containing(maxX, y, maxZ), raining)
+                && isCoveredAt(level, animal.blockPosition(), raining);
     }
 }

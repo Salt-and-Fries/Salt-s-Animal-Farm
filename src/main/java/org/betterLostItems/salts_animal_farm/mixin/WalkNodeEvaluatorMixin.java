@@ -34,9 +34,9 @@ public abstract class WalkNodeEvaluatorMixin {
                 || !(animal instanceof WeightedFarmAnimal weightedAnimal)
                 || weightedAnimal.salts_animal_farm$isFrantic()
                 || animal.hurtTime > 0
-                || hasVisibleScaryMob(animal)
                 || !AnimalWeatherComfort.isRainingInRainBiome(animal)
-                || !AnimalWeatherComfort.isFullyCovered(animal)) {
+                || !AnimalWeatherComfort.isFullyCovered(animal)
+                || hasVisibleScaryMob(animal)) {
             return;
         }
 

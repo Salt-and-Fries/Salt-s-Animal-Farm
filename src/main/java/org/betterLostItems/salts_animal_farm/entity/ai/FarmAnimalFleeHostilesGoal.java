@@ -19,6 +19,7 @@ import java.util.List;
 public class FarmAnimalFleeHostilesGoal extends Goal {
     private final Animal animal;
     private final WeightedFarmAnimal weightedAnimal;
+    private final List<LivingEntity> nearbyHostiles = new ArrayList<>(12);
     private LivingEntity hostile;
     private Vec3 fleePos;
     private int nextScanTick;
@@ -72,19 +73,19 @@ public class FarmAnimalFleeHostilesGoal extends Goal {
     private LivingEntity findNearestHostile() {
         int radius = Salts_animal_farm.CONFIG.hostileScareRadius();
         AABB area = animal.getBoundingBox().inflate(radius);
-        List<LivingEntity> hostiles = new ArrayList<>();
+        nearbyHostiles.clear();
         animal.level().getEntities(
                 EntityTypeTest.forClass(LivingEntity.class),
                 area,
                 entity -> entity != animal && entity.isAlive() && SaltsAnimalFarmConfigLists.isScaryMob(entity) && animal.getSensing().hasLineOfSight(entity),
-                hostiles,
+                nearbyHostiles,
                 12
         );
 
         LivingEntity nearest = null;
         double nearestDistance = Double.MAX_VALUE;
 
-        for (LivingEntity candidate : hostiles) {
+        for (LivingEntity candidate : nearbyHostiles) {
             double distance = candidate.distanceToSqr(animal);
 
             if (distance < nearestDistance) {
@@ -93,6 +94,7 @@ public class FarmAnimalFleeHostilesGoal extends Goal {
             }
         }
 
+        nearbyHostiles.clear();
         return nearest;
     }
 
