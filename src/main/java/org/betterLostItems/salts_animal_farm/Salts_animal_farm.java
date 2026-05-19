@@ -6,6 +6,7 @@ import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
 import org.betterLostItems.salts_animal_farm.debug.AnimalFarmDebugDataSender;
 import org.betterLostItems.salts_animal_farm.debug.AnimalFarmDebugCommands;
 import org.betterLostItems.salts_animal_farm.entity.FarmAnimalFearHandler;
+import org.betterLostItems.salts_animal_farm.entity.FarmAnimalWeightInteractionHandler;
 import org.betterLostItems.salts_animal_farm.network.SaltsAnimalFarmNetworking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ public class Salts_animal_farm implements ModInitializer {
         AnimalFarmDebugDataSender.register();
         AnimalFarmDebugCommands.register();
         FarmAnimalFearHandler.register();
+        FarmAnimalWeightInteractionHandler.register();
 
         if (!CONFIG.modEnabled()) {
             LOGGER.info("Salt's Animal Farm is disabled by config");

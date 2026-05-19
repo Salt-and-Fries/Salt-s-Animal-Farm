@@ -19,6 +19,7 @@ Configured farm animals receive a persistent `weight` value from `0` to `8`.
 - The second and later consecutive successful comfort tasks add `+1` weight each, up to `8`.
 - Failed comfort tasks remove `1` weight, add to the fail counter, and reset the streak.
 - Player damage, player-caused fear, hostile scares, and long rain exposure can also reduce weight.
+- Right-clicking a configured farm animal with an empty main hand shows that animal's current weight as a short subtitle.
 
 Default configured farm animals:
 

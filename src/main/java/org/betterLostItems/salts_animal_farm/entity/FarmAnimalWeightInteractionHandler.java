@@ -1,0 +1,40 @@
+package org.betterLostItems.salts_animal_farm.entity;
+
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Animal;
+import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
+import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
+
+public final class FarmAnimalWeightInteractionHandler {
+    private FarmAnimalWeightInteractionHandler() {
+    }
+
+    public static void register() {
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hitResult) -> {
+            if (!Salts_animal_farm.CONFIG.modEnabled()
+                    || hand != InteractionHand.MAIN_HAND
+                    || !player.getItemInHand(hand).isEmpty()
+                    || player.isSpectator()
+                    || !(entity instanceof Animal animal)
+                    || !(entity instanceof WeightedFarmAnimal weightedAnimal)
+                    || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+                return InteractionResult.PASS;
+            }
+
+            if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
+                showWeightActionBar(serverPlayer, weightedAnimal.salts_animal_farm$getWeight());
+            }
+
+            return InteractionResult.SUCCESS;
+        });
+    }
+
+    private static void showWeightActionBar(ServerPlayer player, int weight) {
+        player.sendOverlayMessage(Component.literal("Weight: " + weight));
+    }
+}
