@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -18,12 +19,16 @@ import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 public class SaltsAnimalFarmConfigScreen extends Screen {
-    private static final int NORMAL_TEXT = 0xE0E0E0;
-    private static final int ERROR_TEXT = 0xFF5555;
-    private static final int LABEL_TEXT = 0xA0A0A0;
+    private static final int NORMAL_TEXT = 0xFFE0E0E0;
+    private static final int ERROR_TEXT = 0xFFFF5555;
+    private static final int LABEL_TEXT = 0xFFA0A0A0;
+    private static final int HELP_TEXT = 0xFFD7D7D7;
+    private static final int HELP_BOX_BACKGROUND = 0xAA101010;
+    private static final int HELP_BOX_BORDER = 0xFF4F4F4F;
 
     private final Screen parent;
     private final MutableConfig values;
+    private final List<HoverRegion> hoverRegions = new ArrayList<>();
     private Page page = Page.GENERAL;
     private String status = "Changes apply immediately";
 
@@ -43,7 +48,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         graphics.centeredText(font, title, width / 2, 12, 0xFFFFFF);
         graphics.centeredText(font, Component.literal(page.title), width / 2, 34, 0xFFD966);
-        graphics.centeredText(font, Component.literal(status), width / 2, height - 50, status.startsWith("Invalid") ? ERROR_TEXT : LABEL_TEXT);
+        drawHelpBox(graphics, mouseX, mouseY);
     }
 
     @Override
@@ -53,6 +58,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
 
     private void rebuildPage() {
         clearWidgets();
+        hoverRegions.clear();
 
         int topButtonY = 28;
         addRenderableWidget(Button.builder(Component.literal("<"), button -> switchPage(-1))
@@ -221,6 +227,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             apply("Updated " + label.toLowerCase(Locale.ROOT));
         });
         addRenderableWidget(box);
+        hoverRegions.add(new HoverRegion(left, top, boxWidth, boxHeight + 22, descriptionFor(label)));
     }
 
     private void addBoolean(String label, boolean value, Consumer<Boolean> setter, int y) {
@@ -230,12 +237,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                     setter.accept(selected);
                     apply("Updated " + label.toLowerCase(Locale.ROOT));
                 }));
+        addHoverRegion(label, y);
     }
 
     private void addInt(String label, int value, IntConsumer setter, int y) {
         addLabel(label, y);
         EditBox box = new EditBox(font, inputX(), y, inputWidth(), 20, Component.literal(label));
         box.setMaxLength(12);
+        box.setTextColor(NORMAL_TEXT);
+        box.setTextColorUneditable(NORMAL_TEXT);
         box.setValue(Integer.toString(value));
         box.setResponder(text -> {
             try {
@@ -248,12 +258,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             }
         });
         addRenderableWidget(box);
+        addHoverRegion(label, y);
     }
 
     private void addDouble(String label, double value, Consumer<Double> setter, int y) {
         addLabel(label, y);
         EditBox box = new EditBox(font, inputX(), y, inputWidth(), 20, Component.literal(label));
         box.setMaxLength(12);
+        box.setTextColor(NORMAL_TEXT);
+        box.setTextColorUneditable(NORMAL_TEXT);
         box.setValue(Double.toString(value));
         box.setResponder(text -> {
             try {
@@ -266,6 +279,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             }
         });
         addRenderableWidget(box);
+        addHoverRegion(label, y);
     }
 
     private void addLabel(String label, int y) {
@@ -276,6 +290,69 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         Salts_animal_farm.updateConfig(values.toConfig());
         values.copyFrom(Salts_animal_farm.CONFIG);
         status = message;
+    }
+
+    private void addHoverRegion(String label, int y) {
+        int left = labelX();
+        int right = inputX() + inputWidth();
+        hoverRegions.add(new HoverRegion(left, y, right - left, 20, descriptionFor(label)));
+    }
+
+    private void drawHelpBox(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        String text = hoverText(mouseX, mouseY);
+        boolean error = status.startsWith("Invalid");
+        int boxWidth = Math.min(520, width - 40);
+        int textWidth = boxWidth - 12;
+        int boxHeight = Math.max(30, font.wordWrapHeight(Component.literal(text), textWidth) + 12);
+        int boxX = Math.max(20, width / 2 - boxWidth / 2);
+        int boxY = Math.max(50, height - 28 - boxHeight - 8);
+
+        graphics.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, HELP_BOX_BACKGROUND);
+        graphics.outline(boxX, boxY, boxWidth, boxHeight, HELP_BOX_BORDER);
+        graphics.textWithWordWrap(font, Component.literal(text), boxX + 6, boxY + 6, textWidth, error ? ERROR_TEXT : HELP_TEXT);
+    }
+
+    private String hoverText(int mouseX, int mouseY) {
+        for (HoverRegion region : hoverRegions) {
+            if (region.contains(mouseX, mouseY)) {
+                return region.description();
+            }
+        }
+
+        return status;
+    }
+
+    private static String descriptionFor(String label) {
+        return switch (label) {
+            case "Enable Mod" -> "Turns all Salt's Animal Farm behavior on or off. When disabled, animal goals, weighted loot, debug labels, fear, rain, and interaction features are inactive.";
+            case "Enable Rain Behavior" -> "Controls whether configured farm animals seek cover in rain, build rain exposure, ignore space tasks while raining, and avoid wet paths while sheltered.";
+            case "Minimum Weight" -> "Lowest weight value a farm animal can have after clamping. Weight controls how many normal loot rolls the animal drops.";
+            case "Maximum Weight" -> "Highest weight value a farm animal can reach from comfort successes and other weight changes.";
+            case "Average Task Delay Ticks" -> "Average delay between comfort task attempts. Twenty ticks is about one second.";
+            case "Delay Jitter Ticks" -> "Random timing variation added around the average task delay so animals do not all act at the same moment.";
+            case "Linger Ticks" -> "How long an animal should remain at a completed comfort condition before the task is considered stable.";
+            case "Task Reach Timeout Ticks" -> "How long an animal has to reach or satisfy a comfort task target before the attempt fails. Twenty ticks is about one second.";
+            case "Maximum Task Ticks" -> "Absolute safety cap for any comfort task attempt. The stricter of this and the reach timeout ends normal tasks.";
+            case "Comfort Move Speed" -> "Movement speed used while an animal travels toward comfort task targets.";
+            case "Search Radius" -> "Horizontal block radius used when finding comfort task targets.";
+            case "Vertical Search" -> "Vertical block range above and below the animal used when finding comfort task targets.";
+            case "Search Samples" -> "Number of extra random target samples checked after the deterministic search.";
+            case "Hostile Scare Radius" -> "Distance around a farm animal scanned for configured scary mobs.";
+            case "Scan Interval Ticks" -> "How often animals scan for scary mobs. Lower values react faster but do more work.";
+            case "Scan Random Offset Ticks" -> "Random offset applied to scare scans so animals do not all scan on the same tick.";
+            case "Scare Cooldown Ticks" -> "Minimum time before the same animal can lose weight again from hostile scare behavior.";
+            case "Hostile Flee Speed" -> "Movement speed used when farm animals flee scary mobs.";
+            case "Kill Witness Radius" -> "Distance from a player-caused animal death where other farm animals can witness it.";
+            case "Maximum Kill Witnesses" -> "Maximum number of nearby farm animals processed as witnesses to a player-caused animal death.";
+            case "Frantic Duration Ticks" -> "How long farm animals remain frantic after player damage, death witnessing, or similar fear events.";
+            case "Frantic Repath Ticks" -> "How often frantic animals pick a new panic movement target.";
+            case "Frantic Move Speed" -> "Movement speed used while animals are frantic.";
+            case "Detailed Debug Information" -> "Enables verbose server log output for comfort task target searching, task ticking, and completion decisions.";
+            case "Farm Animals" -> "Entity IDs or entity tags that receive this mod's farm-animal behavior, weight data, loot changes, and debug data.";
+            case "Scary Mobs" -> "Entity IDs or entity tags that farm animals treat as scary when scanning for threats.";
+            case "Soft Blocks" -> "Block IDs or block tags that count as soft nap spots for the night nap comfort task.";
+            default -> "Changes apply immediately.";
+        };
     }
 
     private static List<String> parseList(String value) {
@@ -303,6 +380,12 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
 
     private int inputWidth() {
         return Math.min(150, Math.max(96, width / 2 - 35));
+    }
+
+    private record HoverRegion(int x, int y, int width, int height, String description) {
+        private boolean contains(int mouseX, int mouseY) {
+            return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+        }
     }
 
     private enum Page {
