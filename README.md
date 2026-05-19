@@ -78,6 +78,7 @@ Default soft blocks:
 This is also special rain behavior.
 
 - When it is raining in a biome that supports rain, exposed animals urgently try the `cover` task.
+- Rain behavior can be turned off with `enableRainBehavior` in the config. When disabled, animals ignore rain entirely.
 - Deserts and other non-rain biomes do not trigger rain cover behavior.
 - Cover means the animal's full body footprint is out of falling rain.
 - Cover targets must be dry, non-water standing spots.
@@ -88,7 +89,7 @@ This is also special rain behavior.
 - While raining, `space` is removed from the normal task pool so animals do not punish themselves for crowding under shelter.
 - If an animal stays exposed to rain for `2400` ticks, about 2 minutes, it loses `1` weight.
 
-Once an animal is fully covered during rain, vanilla pathfinding treats exposed rain blocks as blocked for that animal. This keeps sheltered animals on dry paths while still allowing them to move inside cover. This restriction turns off if the animal is hurt, frantic, or can see a scary mob.
+Once an animal is fully covered during rain and rain behavior is enabled, vanilla pathfinding treats exposed rain blocks as blocked for that animal. This keeps sheltered animals on dry paths while still allowing them to move inside cover. This restriction turns off if the animal is hurt, frantic, or can see a scary mob.
 
 ## Fear And Hostiles
 
@@ -230,6 +231,7 @@ Configurable values include:
 - Farm animal entity list.
 - Scary mob entity list.
 - Soft block list.
+- Rain behavior toggle.
 - Comfort task timing.
 - Comfort task search radius and vertical range.
 - Comfort movement speed.
@@ -256,6 +258,6 @@ The mod uses mixins and Fabric events to add its behavior:
 - Animal save data stores weight, streaks, task state, fear state, and rain exposure.
 - Mob construction injects farm animal goals.
 - Living entity loot is replaced for configured farm animals.
-- Walk node evaluation blocks exposed rain paths for sheltered animals.
+- Walk node evaluation blocks exposed rain paths for sheltered animals while rain behavior is enabled.
 - Client entity rendering shows debug labels.
 - Fabric server events handle damage, death witnesses, ticking debug data, and commands.

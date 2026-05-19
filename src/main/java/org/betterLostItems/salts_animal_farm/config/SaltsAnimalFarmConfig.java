@@ -22,6 +22,7 @@ public record SaltsAnimalFarmConfig(
         List<String> softBlocks,
         int minimumWeight,
         int maximumWeight,
+        Boolean enableRainBehavior,
         int comfortTaskAverageDelayTicks,
         int comfortTaskDelayJitterTicks,
         int comfortSearchRadius,
@@ -78,6 +79,7 @@ public record SaltsAnimalFarmConfig(
             ),
             1,
             8,
+            true,
             4000,
             2000,
             12,
@@ -148,6 +150,7 @@ public record SaltsAnimalFarmConfig(
                 sanitizedList(softBlocks, DEFAULT.softBlocks),
                 sanitizedMinimumWeight,
                 sanitizedMaximumWeight,
+                enableRainBehavior == null ? DEFAULT.rainBehaviorEnabled() : enableRainBehavior,
                 atLeast(comfortTaskAverageDelayTicks, 200),
                 Math.max(comfortTaskDelayJitterTicks, 0),
                 atLeast(comfortSearchRadius, 2),
@@ -168,6 +171,10 @@ public record SaltsAnimalFarmConfig(
                 atLeast(franticMoveSpeed, 0.1),
                 enableDetailedDebugInformation
         );
+    }
+
+    public boolean rainBehaviorEnabled() {
+        return Boolean.TRUE.equals(enableRainBehavior);
     }
 
     private static int atLeast(int value, int minimum) {

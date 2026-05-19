@@ -5,6 +5,7 @@ import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.phys.AABB;
+import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 
 public final class AnimalWeatherComfort {
     public static final int RAIN_COVER_WEIGHT_LOSS_TICKS = 2400;
@@ -13,6 +14,10 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean shouldSeekRainCover(Animal animal) {
+        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+            return false;
+        }
+
         Level level = animal.level();
         return level.isRaining()
                 && level.precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN
@@ -20,10 +25,16 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean isRainingInRainBiome(Animal animal) {
-        return animal.level().isRaining() && animal.level().precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN;
+        return Salts_animal_farm.CONFIG.rainBehaviorEnabled()
+                && animal.level().isRaining()
+                && animal.level().precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN;
     }
 
     public static boolean isRainFallingAt(Level level, BlockPos pos) {
+        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+            return false;
+        }
+
         return isRainFallingAt(level, pos, level.isRaining());
     }
 
@@ -42,6 +53,10 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean isFullyCovered(Animal animal) {
+        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+            return true;
+        }
+
         AABB box = animal.getBoundingBox();
         double minX = box.minX + 0.05D;
         double maxX = box.maxX - 0.05D;
