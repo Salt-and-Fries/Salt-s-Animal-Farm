@@ -17,6 +17,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
@@ -31,7 +32,9 @@ import java.util.function.Supplier;
 public class AnimalComfortGoal extends Goal {
     private static final double FRIEND_COMPLETION_DISTANCE_SQR = 16.0D;
     private static final double FRIEND_RETARGET_DISTANCE_SQR = 4.0D;
-    private static final double SPACE_ANIMAL_RADIUS = 3.0D;
+    private static final double SPACE_CLEAR_RADIUS = 1.5D;
+    private static final double SPACE_MOB_CLEAR_RADIUS = 1.5D;
+    private static final int SPACE_RETARGET_INTERVAL_TICKS = 10;
     private static final int COVER_TARGET_DEEPEN_RADIUS = 2;
 
     private static final List<ComfortTask> DAY_TASKS = List.of(
@@ -137,12 +140,12 @@ public class AnimalComfortGoal extends Goal {
 
         activeTask = task;
         targetFriend = null;
+        weightedAnimal.salts_animal_farm$setCurrentComfortTask(task.taskName());
         BlockPos currentPos = animal.blockPosition();
         debug(() -> "selected task=" + task.taskName() + " forced=" + forced + " currentPos=" + posString(currentPos) + " currentCheck={" + taskCheckDetails(task, currentPos) + "}");
 
         if (isCompletionSpot(task, currentPos)) {
             targetPos = currentPos;
-            weightedAnimal.salts_animal_farm$setCurrentComfortTask(task.taskName());
             debug("task already satisfied at current position, starting linger currentPos=" + posString(currentPos));
             return true;
         }
@@ -150,25 +153,26 @@ public class AnimalComfortGoal extends Goal {
         targetPos = findTarget(task);
 
         if (targetPos == null) {
-            activeTask = null;
             if (task == ComfortTask.COVER) {
                 debug(() -> "canUse=false reason=no_cover_found task=" + task.taskName() + " rainExposureTicks=" + weightedAnimal.salts_animal_farm$getRainExposureTicks() + " currentCheck={" + taskCheckDetails(task, currentPos) + "}");
                 scheduleNextRainCoverAttempt();
+                activeTask = null;
+                weightedAnimal.salts_animal_farm$setCurrentComfortTask("");
             } else {
                 debug(() -> "canUse=false reason=no_target_found task=" + task.taskName() + " -> recording failure currentCheck={" + taskCheckDetails(task, currentPos) + "}");
                 recordTaskFailure();
+                activeTask = null;
             }
             return false;
         }
 
-        weightedAnimal.salts_animal_farm$setCurrentComfortTask(task.taskName());
         debug(() -> "canUse=true task=" + task.taskName() + " target=" + posString(targetPos) + " targetCheck={" + taskCheckDetails(task, targetPos) + "}");
         return true;
     }
 
     @Override
     public boolean canContinueToUse() {
-        int maxTaskTicks = Salts_animal_farm.CONFIG.comfortMaxTaskTicks();
+        int maxTaskTicks = taskTimeoutTicks();
         if (targetPos == null || activeTicks >= maxTaskTicks) {
             if (activeTask != null) {
                 debug(() -> "canContinue=false task=" + activeTask.taskName()
@@ -178,7 +182,8 @@ public class AnimalComfortGoal extends Goal {
                         + " frantic=" + weightedAnimal.salts_animal_farm$isFrantic()
                         + " hurtTime=" + animal.hurtTime
                         + " activeTicks=" + activeTicks
-                        + " maxTicks=" + maxTaskTicks);
+                        + " maxTicks=" + Salts_animal_farm.CONFIG.comfortMaxTaskTicks()
+                        + " reachTimeoutTicks=" + Salts_animal_farm.CONFIG.comfortTaskReachTimeoutTicks());
             }
             return false;
         }
@@ -193,7 +198,8 @@ public class AnimalComfortGoal extends Goal {
                     + " frantic=" + weightedAnimal.salts_animal_farm$isFrantic()
                     + " hurtTime=" + animal.hurtTime
                     + " activeTicks=" + activeTicks
-                    + " maxTicks=" + maxTaskTicks);
+                    + " maxTicks=" + Salts_animal_farm.CONFIG.comfortMaxTaskTicks()
+                    + " reachTimeoutTicks=" + Salts_animal_farm.CONFIG.comfortTaskReachTimeoutTicks());
         }
 
         return !dangerInterrupt;
@@ -223,7 +229,7 @@ public class AnimalComfortGoal extends Goal {
             boolean currentCompletion = isCompletionSpot(activeTask, currentPos);
             boolean targetCompletion = canCompleteFromTarget(activeTask) && targetDistanceSqr <= 4.0D && isCompletionSpot(activeTask, targetPos);
             boolean dangerInterrupt = hasDangerInterrupt();
-            boolean interruption = activeTicks < Salts_animal_farm.CONFIG.comfortMaxTaskTicks();
+            boolean timeout = activeTicks >= taskTimeoutTicks();
 
             if (currentCompletion || targetCompletion) {
                 if (lingerTicks > 0) {
@@ -267,7 +273,7 @@ public class AnimalComfortGoal extends Goal {
                         + " hurtTime=" + animal.hurtTime
                         + " currentCheck={" + taskCheckDetails(activeTask, currentPos) + "}"
                         + " targetCheck={" + taskCheckDetails(activeTask, targetPos) + "}");
-            } else if (interruption) {
+            } else if (!timeout) {
                 debug(() -> "stop interrupted unfinished task before timeout -> neutral stop task=" + activeTask.taskName()
                         + " target=" + posString(targetPos)
                         + " activeTicks=" + activeTicks
@@ -279,7 +285,7 @@ public class AnimalComfortGoal extends Goal {
                         + " currentCheck={" + taskCheckDetails(activeTask, currentPos) + "}"
                         + " targetCheck={" + taskCheckDetails(activeTask, targetPos) + "}");
             } else if (activeTask == ComfortTask.COVER) {
-                debug(() -> "stop unfinished cover task after max ticks -> neutral stop target=" + posString(targetPos)
+                debug(() -> "stop unfinished cover task after timeout -> neutral stop target=" + posString(targetPos)
                         + " activeTicks=" + activeTicks
                         + " lingerTicks=" + lingerTicks
                         + " rainExposureTicks=" + weightedAnimal.salts_animal_farm$getRainExposureTicks()
@@ -290,7 +296,7 @@ public class AnimalComfortGoal extends Goal {
                         + " currentCheck={" + taskCheckDetails(activeTask, currentPos) + "}"
                         + " targetCheck={" + taskCheckDetails(activeTask, targetPos) + "}");
             } else {
-                debug(() -> "stop with unfinished task -> recording failure task=" + activeTask.taskName()
+                debug(() -> "stop with unfinished task after timeout -> recording failure task=" + activeTask.taskName()
                         + " target=" + posString(targetPos)
                         + " activeTicks=" + activeTicks
                         + " lingerTicks=" + lingerTicks
@@ -326,6 +332,7 @@ public class AnimalComfortGoal extends Goal {
 
         activeTicks++;
         updateFriendTarget();
+        updateSpaceTarget();
         BlockPos currentPos = animal.blockPosition();
         double targetDistanceSqr = distanceToCenterSqr(targetPos);
         boolean currentCompletion = activeTask != null && isCompletionSpot(activeTask, currentPos);
@@ -397,6 +404,11 @@ public class AnimalComfortGoal extends Goal {
         return tasks.get(animal.getRandom().nextInt(tasks.size()));
     }
 
+    private int taskTimeoutTicks() {
+        SaltsAnimalFarmConfig config = Salts_animal_farm.CONFIG;
+        return Math.min(config.comfortMaxTaskTicks(), config.comfortTaskReachTimeoutTicks());
+    }
+
     private boolean isDaytime() {
         long timeOfDay = animal.level().getOverworldClockTime() % 24000L;
         return timeOfDay >= 0L && timeOfDay < 12000L;
@@ -409,6 +421,10 @@ public class AnimalComfortGoal extends Goal {
 
         if (task == ComfortTask.COVER) {
             return findCoverTarget();
+        }
+
+        if (task == ComfortTask.SPACE) {
+            return findSpaceTarget();
         }
 
         SaltsAnimalFarmConfig config = Salts_animal_farm.CONFIG;
@@ -622,6 +638,131 @@ public class AnimalComfortGoal extends Goal {
         return current;
     }
 
+    private BlockPos findSpaceTarget() {
+        SaltsAnimalFarmConfig config = Salts_animal_farm.CONFIG;
+        RandomSource random = animal.getRandom();
+        BlockPos origin = animal.blockPosition();
+        Vec3 crowdCenter = nearbyAnimalCenter(config.comfortSearchRadius());
+        SpaceCandidate best = null;
+        int checked = 0;
+        int validStandingSpots = 0;
+
+        debug("findSpaceTarget start origin=" + posString(origin)
+                + " crowdCenter=" + vecString(crowdCenter)
+                + " searchRadius=" + config.comfortSearchRadius()
+                + " verticalSearch=" + config.comfortVerticalSearch()
+                + " randomSamples=" + config.comfortSearchSamples());
+
+        for (int radius = 1; radius <= config.comfortSearchRadius(); radius++) {
+            for (BlockPos candidate : BlockPos.betweenClosed(
+                    origin.offset(-radius, -config.comfortVerticalSearch(), -radius),
+                    origin.offset(radius, config.comfortVerticalSearch(), radius))) {
+                if (Math.abs(candidate.getX() - origin.getX()) != radius && Math.abs(candidate.getZ() - origin.getZ()) != radius) {
+                    continue;
+                }
+
+                BlockPos immutableCandidate = candidate.immutable();
+                checked++;
+                boolean validStandingSpot = isValidStandingSpot(immutableCandidate);
+                boolean matchesTask = validStandingSpot && matchesTask(ComfortTask.SPACE, immutableCandidate);
+
+                if (validStandingSpot) {
+                    validStandingSpots++;
+                }
+
+                debugCandidate("deterministic", ComfortTask.SPACE, immutableCandidate, checked, validStandingSpot, matchesTask);
+
+                if (matchesTask) {
+                    SpaceCandidate spaceCandidate = evaluateSpaceCandidate(origin, immutableCandidate, crowdCenter, "deterministic");
+                    best = chooseBetterSpaceCandidate(best, spaceCandidate);
+                }
+            }
+        }
+
+        for (int i = 0; i < config.comfortSearchSamples(); i++) {
+            BlockPos candidate = origin.offset(
+                    random.nextInt(config.comfortSearchRadius() * 2 + 1) - config.comfortSearchRadius(),
+                    random.nextInt(config.comfortVerticalSearch() * 2 + 1) - config.comfortVerticalSearch(),
+                    random.nextInt(config.comfortSearchRadius() * 2 + 1) - config.comfortSearchRadius()
+            ).immutable();
+            checked++;
+            boolean validStandingSpot = isValidStandingSpot(candidate);
+            boolean matchesTask = validStandingSpot && matchesTask(ComfortTask.SPACE, candidate);
+
+            if (validStandingSpot) {
+                validStandingSpots++;
+            }
+
+            debugCandidate("random", ComfortTask.SPACE, candidate, checked, validStandingSpot, matchesTask);
+
+            if (matchesTask) {
+                SpaceCandidate spaceCandidate = evaluateSpaceCandidate(origin, candidate, crowdCenter, "random");
+                best = chooseBetterSpaceCandidate(best, spaceCandidate);
+            }
+        }
+
+        if (best != null) {
+            SpaceCandidate loggedBest = best;
+            int loggedChecked = checked;
+            int loggedValidStandingSpots = validStandingSpots;
+            debug(() -> "findSpaceTarget success target=" + posString(loggedBest.pos())
+                    + " score=" + String.format(java.util.Locale.ROOT, "%.3f", loggedBest.score())
+                    + " phase=" + loggedBest.phase()
+                    + " checked=" + loggedChecked
+                    + " validStandingSpots=" + loggedValidStandingSpots
+                    + " details={" + taskCheckDetails(ComfortTask.SPACE, loggedBest.pos()) + "}");
+            return loggedBest.pos();
+        }
+
+        debug("findSpaceTarget failed origin=" + posString(origin)
+                + " checked=" + checked
+                + " validStandingSpots=" + validStandingSpots);
+        return null;
+    }
+
+    private SpaceCandidate evaluateSpaceCandidate(BlockPos origin, BlockPos candidate, Vec3 crowdCenter, String phase) {
+        Path path = createPathTo(candidate);
+        if (path == null || !path.canReach()) {
+            debug("candidate rejected phase=" + phase
+                    + " task=space pos=" + posString(candidate)
+                    + " reason=no_path");
+            return null;
+        }
+
+        return new SpaceCandidate(candidate, spaceScore(origin, candidate, crowdCenter), phase);
+    }
+
+    private SpaceCandidate chooseBetterSpaceCandidate(SpaceCandidate current, SpaceCandidate candidate) {
+        if (candidate == null) {
+            return current;
+        }
+
+        if (current == null || candidate.score() > current.score()) {
+            return candidate;
+        }
+
+        return current;
+    }
+
+    private double spaceScore(BlockPos origin, BlockPos candidate, Vec3 crowdCenter) {
+        Vec3 originCenter = Vec3.atCenterOf(origin);
+        Vec3 candidateCenter = Vec3.atCenterOf(candidate);
+        double score = -originCenter.distanceTo(candidateCenter);
+
+        if (crowdCenter != null) {
+            Vec3 awayDirection = originCenter.subtract(crowdCenter);
+            if (awayDirection.horizontalDistanceSqr() > 0.0001D) {
+                awayDirection = new Vec3(awayDirection.x, 0.0D, awayDirection.z).normalize();
+                Vec3 moveDirection = candidateCenter.subtract(originCenter);
+                score += new Vec3(moveDirection.x, 0.0D, moveDirection.z).dot(awayDirection) * 12.0D;
+            }
+
+            score += candidateCenter.distanceTo(crowdCenter) * 4.0D;
+        }
+
+        return score;
+    }
+
     private int coverScore(BlockPos origin, BlockPos pos) {
         int score = 0;
 
@@ -717,6 +858,40 @@ public class AnimalComfortGoal extends Goal {
                 + " friend=" + targetFriend.getType().toShortString() + "#" + targetFriend.getId()
                 + " friendPos=" + posString(targetFriend.blockPosition())
                 + " oldTargetDistanceSqr=" + String.format(java.util.Locale.ROOT, "%.3f", oldTargetDistanceSqr));
+        targetPos = updatedTarget;
+        animal.getNavigation().moveTo(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D, Salts_animal_farm.CONFIG.comfortMoveSpeed());
+    }
+
+    private void updateSpaceTarget() {
+        if (activeTask != ComfortTask.SPACE || targetPos == null) {
+            return;
+        }
+
+        boolean targetStillOpen = isValidStandingSpot(targetPos) && matchesTask(ComfortTask.SPACE, targetPos);
+        boolean shouldRefresh = !targetStillOpen || activeTicks % SPACE_RETARGET_INTERVAL_TICKS == 0 || animal.getNavigation().isDone();
+
+        if (!shouldRefresh) {
+            return;
+        }
+
+        BlockPos updatedTarget = findSpaceTarget();
+        if (updatedTarget == null) {
+            debug(() -> "space target refresh found no open target currentTarget=" + posString(targetPos)
+                    + " targetStillOpen=" + targetStillOpen
+                    + " currentCheck={" + taskCheckDetails(ComfortTask.SPACE, animal.blockPosition()) + "}"
+                    + " targetCheck={" + taskCheckDetails(ComfortTask.SPACE, targetPos) + "}");
+            return;
+        }
+
+        if (updatedTarget.equals(targetPos) && !animal.getNavigation().isDone()) {
+            return;
+        }
+
+        debug(() -> "space target refresh oldTarget=" + posString(targetPos)
+                + " newTarget=" + posString(updatedTarget)
+                + " targetStillOpen=" + targetStillOpen
+                + " currentPos=" + posString(animal.blockPosition())
+                + " newTargetCheck={" + taskCheckDetails(ComfortTask.SPACE, updatedTarget) + "}");
         targetPos = updatedTarget;
         animal.getNavigation().moveTo(targetPos.getX() + 0.5D, targetPos.getY(), targetPos.getZ() + 0.5D, Salts_animal_farm.CONFIG.comfortMoveSpeed());
     }
@@ -871,10 +1046,10 @@ public class AnimalComfortGoal extends Goal {
             }
         }
 
-        AABB area = new AABB(pos).inflate(1.5D, 1.0D, 1.5D);
+        AABB area = centeredAabb(pos).inflate(SPACE_MOB_CLEAR_RADIUS, 1.0D, SPACE_MOB_CLEAR_RADIUS);
         if (animal.level().hasEntities(
                 net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
-                centeredAabb(pos).inflate(SPACE_ANIMAL_RADIUS, 1.5D, SPACE_ANIMAL_RADIUS),
+                centeredAabb(pos).inflate(SPACE_CLEAR_RADIUS, 1.5D, SPACE_CLEAR_RADIUS),
                 nearbyAnimal -> nearbyAnimal != animal && nearbyAnimal.isAlive()
         )) {
             return false;
@@ -913,6 +1088,7 @@ public class AnimalComfortGoal extends Goal {
                 + " streak=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                 + " rainExposureTicks=" + weightedAnimal.salts_animal_farm$getRainExposureTicks());
         playTaskSuccessFeedback();
+        weightedAnimal.salts_animal_farm$setLastComfortTask(taskNameOrNull());
         weightedAnimal.salts_animal_farm$setLastComfortTaskResult("Covered");
         weightedAnimal.salts_animal_farm$setCurrentComfortTask("");
     }
@@ -1091,14 +1267,14 @@ public class AnimalComfortGoal extends Goal {
         int mobCount = nearbySpaceMobCount(pos);
         int animalCount = nearbySpaceAnimalCount(pos);
         if (animalCount > 0) {
-            return "nearbyAnimalCount=" + animalCount + " radius=" + SPACE_ANIMAL_RADIUS;
+            return "nearbyAnimalCount=" + animalCount + " clearRadius=" + SPACE_CLEAR_RADIUS;
         }
 
         return mobCount == 0 ? "clear" : "nearbyMobCount=" + mobCount;
     }
 
     private int nearbySpaceAnimalCount(BlockPos pos) {
-        AABB area = centeredAabb(pos).inflate(SPACE_ANIMAL_RADIUS, 1.5D, SPACE_ANIMAL_RADIUS);
+        AABB area = centeredAabb(pos).inflate(SPACE_CLEAR_RADIUS, 1.5D, SPACE_CLEAR_RADIUS);
         return animal.level().getEntities(
                 net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
                 area,
@@ -1107,12 +1283,37 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private int nearbySpaceMobCount(BlockPos pos) {
-        AABB area = new AABB(pos).inflate(1.5D, 1.0D, 1.5D);
+        AABB area = centeredAabb(pos).inflate(SPACE_MOB_CLEAR_RADIUS, 1.0D, SPACE_MOB_CLEAR_RADIUS);
         return animal.level().getEntities(
                 net.minecraft.world.level.entity.EntityTypeTest.forClass(Mob.class),
                 area,
                 mob -> mob != animal && mob.isAlive()
         ).size();
+    }
+
+    private Vec3 nearbyAnimalCenter(double radius) {
+        AABB area = animal.getBoundingBox().inflate(radius);
+        List<Animal> nearbyAnimals = animal.level().getEntities(
+                net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
+                area,
+                nearbyAnimal -> nearbyAnimal != animal && nearbyAnimal.isAlive()
+        );
+
+        if (nearbyAnimals.isEmpty()) {
+            return null;
+        }
+
+        double x = 0.0D;
+        double y = 0.0D;
+        double z = 0.0D;
+
+        for (Animal nearbyAnimal : nearbyAnimals) {
+            x += nearbyAnimal.getX();
+            y += nearbyAnimal.getY();
+            z += nearbyAnimal.getZ();
+        }
+
+        return new Vec3(x / nearbyAnimals.size(), y / nearbyAnimals.size(), z / nearbyAnimals.size());
     }
 
     private int nearbyFriendCount() {
@@ -1181,6 +1382,14 @@ public class AnimalComfortGoal extends Goal {
         return pos == null ? "null" : "(" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + ")";
     }
 
+    private static String vecString(Vec3 vec) {
+        return vec == null
+                ? "null"
+                : "(" + String.format(java.util.Locale.ROOT, "%.2f", vec.x)
+                + "," + String.format(java.util.Locale.ROOT, "%.2f", vec.y)
+                + "," + String.format(java.util.Locale.ROOT, "%.2f", vec.z) + ")";
+    }
+
     private double distanceToCenterSqr(BlockPos pos) {
         double dx = animal.getX() - (pos.getX() + 0.5D);
         double dy = animal.getY() - (pos.getY() + 0.5D);
@@ -1240,5 +1449,8 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private record CoverCandidate(BlockPos pos, int score) {
+    }
+
+    private record SpaceCandidate(BlockPos pos, double score, String phase) {
     }
 }

@@ -25,6 +25,10 @@ public interface WeightedFarmAnimal {
 
     void salts_animal_farm$setLastComfortTaskResult(String result);
 
+    String salts_animal_farm$getLastComfortTask();
+
+    void salts_animal_farm$setLastComfortTask(String taskName);
+
     int salts_animal_farm$getFranticTicks();
 
     void salts_animal_farm$setFranticTicks(int ticks);
@@ -49,6 +53,7 @@ public interface WeightedFarmAnimal {
         int nextStreak = salts_animal_farm$getSuccessfulTaskStreak() + 1;
         salts_animal_farm$setSuccessfulTaskStreak(nextStreak);
         salts_animal_farm$setTotalSuccessfulTasks(salts_animal_farm$getTotalSuccessfulTasks() + 1);
+        salts_animal_farm$setLastComfortTask(salts_animal_farm$getCurrentComfortTask());
         salts_animal_farm$setLastComfortTaskResult("Success");
         salts_animal_farm$setCurrentComfortTask("");
 
@@ -60,6 +65,7 @@ public interface WeightedFarmAnimal {
     default void salts_animal_farm$recordComfortFailure() {
         salts_animal_farm$addWeight(-1);
         salts_animal_farm$setTotalFailedTasks(salts_animal_farm$getTotalFailedTasks() + 1);
+        salts_animal_farm$setLastComfortTask(salts_animal_farm$getCurrentComfortTask());
         salts_animal_farm$setLastComfortTaskResult("Failed");
         salts_animal_farm$setCurrentComfortTask("");
         salts_animal_farm$resetComfortStreak();

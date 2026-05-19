@@ -19,7 +19,7 @@ Configured farm animals receive a persistent `weight` value from `0` to `8`.
 - The second and later consecutive successful comfort tasks add `+1` weight each, up to `8`.
 - Failed comfort tasks remove `1` weight, add to the fail counter, and reset the streak.
 - Player damage, player-caused fear, hostile scares, and long rain exposure can also reduce weight.
-- Right-clicking a configured farm animal with an empty main hand shows that animal's current weight as a short subtitle.
+- Right-clicking a configured farm animal with an empty main hand shows that animal's current weight in the action bar.
 
 Default configured farm animals:
 
@@ -41,6 +41,7 @@ Default timing:
 - Search radius: `12` blocks.
 - Vertical search: `4` blocks.
 - Random search samples: `28`.
+- Target reach timeout: `200` ticks.
 - Maximum task duration: `600` ticks.
 - Comfort movement speed: `1.0`.
 
@@ -51,7 +52,7 @@ During daytime, animals can attempt:
 - `shade`: find a spot without visible sky.
 - `sunlight`: find a spot with visible sky.
 - `water`: stand on dry land adjacent to water, including water one block below neighboring shoreline blocks.
-- `space`: find open 3x3 standing space without nearby animals or mobs.
+- `space`: move away from nearby animals and find a clear 3x3 standing space without other animals in it.
 - `friend`: move close enough to another same-type animal.
 
 ### Night Tasks
@@ -62,7 +63,7 @@ At night, animals can attempt:
 - `nap`: stand on a configured soft block.
 - `stars`: find a spot with visible sky.
 - `water`: stand on dry land adjacent to water.
-- `space`: find open space.
+- `space`: move away from nearby animals and find a clear 3x3 standing space.
 - `friend`: move close enough to another same-type animal.
 
 Default soft blocks:
@@ -156,7 +157,7 @@ When enabled, nearby configured farm animals show stacked text above their heads
 
 - Animal type.
 - Weight and age.
-- Current task and last result.
+- Current task, last completed or failed task, and last result.
 - Successful task streak.
 - Total successes and failures.
 - Frantic ticks and scare cooldown.

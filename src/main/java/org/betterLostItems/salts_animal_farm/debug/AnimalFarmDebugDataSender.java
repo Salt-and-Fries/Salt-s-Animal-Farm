@@ -82,10 +82,12 @@ public final class AnimalFarmDebugDataSender {
 
     private static List<String> debugLines(Animal animal, WeightedFarmAnimal weightedAnimal) {
         String currentTask = cleanDebugValue(weightedAnimal.salts_animal_farm$getCurrentComfortTask());
+        String lastTask = cleanDebugValue(weightedAnimal.salts_animal_farm$getLastComfortTask());
+        String lastResult = cleanDebugValue(weightedAnimal.salts_animal_farm$getLastComfortTaskResult());
         return List.of(
                 "Farm Debug: " + animal.getType().toShortString(),
                 "Weight: " + weightedAnimal.salts_animal_farm$getWeight() + " | Age: " + animal.getAge(),
-                "Task: " + currentTask + " | Last: " + cleanDebugValue(weightedAnimal.salts_animal_farm$getLastComfortTaskResult()),
+                "Task: " + currentTask + " | Last: " + lastTask + " " + lastResult,
                 "Streak: " + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                         + " | Success: " + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks()
                         + " | Fail: " + weightedAnimal.salts_animal_farm$getTotalFailedTasks(),

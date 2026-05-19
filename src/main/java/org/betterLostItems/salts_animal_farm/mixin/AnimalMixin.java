@@ -28,6 +28,8 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     @Unique
     private static final String TOTAL_FAILED_TASKS = "TotalFailedTasks";
     @Unique
+    private static final String LAST_COMFORT_TASK = "LastComfortTask";
+    @Unique
     private static final String LAST_COMFORT_TASK_RESULT = "LastComfortTaskResult";
     @Unique
     private static final String FRANTIC_TICKS = "FranticTicks";
@@ -46,6 +48,8 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private int salts_animal_farm$totalFailedTasks;
     @Unique
     private String salts_animal_farm$currentComfortTask = "";
+    @Unique
+    private String salts_animal_farm$lastComfortTask = "Null";
     @Unique
     private String salts_animal_farm$lastComfortTaskResult = "Null";
     @Unique
@@ -68,6 +72,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
         data.putInt(SUCCESSFUL_TASK_STREAK, salts_animal_farm$getSuccessfulTaskStreak());
         data.putInt(TOTAL_SUCCESSFUL_TASKS, salts_animal_farm$getTotalSuccessfulTasks());
         data.putInt(TOTAL_FAILED_TASKS, salts_animal_farm$getTotalFailedTasks());
+        data.putString(LAST_COMFORT_TASK, salts_animal_farm$getLastComfortTask());
         data.putString(LAST_COMFORT_TASK_RESULT, salts_animal_farm$getLastComfortTaskResult());
         data.putInt(FRANTIC_TICKS, salts_animal_farm$getFranticTicks());
         data.putInt(SCARE_COOLDOWN_TICKS, salts_animal_farm$getScareCooldownTicks());
@@ -85,6 +90,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
         salts_animal_farm$setSuccessfulTaskStreak(data.getIntOr(SUCCESSFUL_TASK_STREAK, 0));
         salts_animal_farm$setTotalSuccessfulTasks(data.getIntOr(TOTAL_SUCCESSFUL_TASKS, 0));
         salts_animal_farm$setTotalFailedTasks(data.getIntOr(TOTAL_FAILED_TASKS, 0));
+        salts_animal_farm$setLastComfortTask(data.getStringOr(LAST_COMFORT_TASK, "Null"));
         salts_animal_farm$setLastComfortTaskResult(data.getStringOr(LAST_COMFORT_TASK_RESULT, "Null"));
         salts_animal_farm$setCurrentComfortTask("");
         salts_animal_farm$setFranticTicks(data.getIntOr(FRANTIC_TICKS, 0));
@@ -174,6 +180,17 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     @Override
     public void salts_animal_farm$setCurrentComfortTask(String taskName) {
         salts_animal_farm$currentComfortTask = taskName == null ? "" : taskName;
+    }
+
+    @Override
+    public String salts_animal_farm$getLastComfortTask() {
+        return salts_animal_farm$lastComfortTask == null ? "Null" : salts_animal_farm$lastComfortTask;
+    }
+
+    @Override
+    public void salts_animal_farm$setLastComfortTask(String taskName) {
+        String cleanTaskName = taskName == null || taskName.isBlank() ? "Null" : taskName;
+        salts_animal_farm$lastComfortTask = cleanTaskName;
     }
 
     @Override

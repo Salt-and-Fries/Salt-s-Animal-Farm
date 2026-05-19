@@ -106,6 +106,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                 values.comfortTaskAverageDelayTicks = defaults.comfortTaskAverageDelayTicks();
                 values.comfortTaskDelayJitterTicks = defaults.comfortTaskDelayJitterTicks();
                 values.comfortLingerTicks = defaults.comfortLingerTicks();
+                values.comfortTaskReachTimeoutTicks = defaults.comfortTaskReachTimeoutTicks();
                 values.comfortMaxTaskTicks = defaults.comfortMaxTaskTicks();
                 values.comfortMoveSpeed = defaults.comfortMoveSpeed();
             }
@@ -153,6 +154,8 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         addInt("Delay Jitter Ticks", values.comfortTaskDelayJitterTicks, value -> values.comfortTaskDelayJitterTicks = value, y);
         y += 26;
         addInt("Linger Ticks", values.comfortLingerTicks, value -> values.comfortLingerTicks = value, y);
+        y += 26;
+        addInt("Task Reach Timeout Ticks", values.comfortTaskReachTimeoutTicks, value -> values.comfortTaskReachTimeoutTicks = value, y);
         y += 26;
         addInt("Maximum Task Ticks", values.comfortMaxTaskTicks, value -> values.comfortMaxTaskTicks = value, y);
         y += 26;
@@ -334,6 +337,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         private int comfortVerticalSearch;
         private int comfortSearchSamples;
         private int comfortLingerTicks;
+        private int comfortTaskReachTimeoutTicks;
         private int comfortMaxTaskTicks;
         private double comfortMoveSpeed;
         private int hostileScareRadius;
@@ -368,6 +372,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             comfortVerticalSearch = config.comfortVerticalSearch();
             comfortSearchSamples = config.comfortSearchSamples();
             comfortLingerTicks = config.comfortLingerTicks();
+            comfortTaskReachTimeoutTicks = config.comfortTaskReachTimeoutTicks();
             comfortMaxTaskTicks = config.comfortMaxTaskTicks();
             comfortMoveSpeed = config.comfortMoveSpeed();
             hostileScareRadius = config.hostileScareRadius();
@@ -398,6 +403,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                     comfortVerticalSearch,
                     comfortSearchSamples,
                     comfortLingerTicks,
+                    comfortTaskReachTimeoutTicks,
                     comfortMaxTaskTicks,
                     comfortMoveSpeed,
                     hostileScareRadius,
