@@ -3,11 +3,11 @@
   "id": "salts_animal_farm",
   "version": "${version}",
   "name": "Salt's Animal Farm",
-  "description": "This mod changes the lighting to be more logical",
+  "description": "Adds richer farm animal behavior with comfort tasks, weather reactions, fear responses, weight-based loot, and debug tools.",
   "authors": [],
   "contact": {},
   "license": "MIT",
-  "icon": "assets/salts_animal_farm/icon.png",
+  "icon": "icon.png",
   "environment": "*",
   "entrypoints": {
     "fabric-datagen": [
@@ -18,6 +18,9 @@
     ],
     "main": [
       "org.betterLostItems.salts_animal_farm.Salts_animal_farm"
+    ],
+    "modmenu": [
+      "org.betterLostItems.salts_animal_farm.client.SaltsAnimalFarmModMenu"
     ]
   },
   "mixins": [
@@ -31,5 +34,8 @@
     "fabricloader": ">=${loader_version}",
     "fabric-api": "*",
     "minecraft": "${minecraft_version}"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

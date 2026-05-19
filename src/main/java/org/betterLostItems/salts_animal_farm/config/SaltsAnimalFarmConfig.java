@@ -106,7 +106,7 @@ public record SaltsAnimalFarmConfig(
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     public static SaltsAnimalFarmConfig load() {
-        Path path = FabricLoader.getInstance().getConfigDir().resolve("salts_animal_farm.json");
+        Path path = configPath();
 
         if (Files.notExists(path)) {
             writeDefault(path);
@@ -128,6 +128,14 @@ public record SaltsAnimalFarmConfig(
         writeConfig(path, DEFAULT);
     }
 
+    public static void save(SaltsAnimalFarmConfig config) {
+        writeConfig(configPath(), config.sanitized());
+    }
+
+    private static Path configPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve("salts_animal_farm.json");
+    }
+
     private static void writeConfig(Path path, SaltsAnimalFarmConfig config) {
         try {
             Files.createDirectories(path.getParent());
@@ -140,7 +148,7 @@ public record SaltsAnimalFarmConfig(
         }
     }
 
-    private SaltsAnimalFarmConfig sanitized() {
+    public SaltsAnimalFarmConfig sanitized() {
         int sanitizedMinimumWeight = Math.max(minimumWeight, 0);
         int sanitizedMaximumWeight = maximumWeight <= sanitizedMinimumWeight
                 ? Math.max(DEFAULT.maximumWeight, sanitizedMinimumWeight)

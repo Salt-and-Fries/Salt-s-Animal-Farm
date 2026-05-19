@@ -7,7 +7,6 @@ import net.minecraft.world.entity.ai.goal.GoalSelector;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.Level;
 import org.betterLostItems.salts_animal_farm.entity.FarmAnimalGoals;
-import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -25,7 +24,7 @@ public abstract class MobMixin {
     private void salts_animal_farm$addFarmAnimalGoals(EntityType<? extends Mob> entityType, Level level, CallbackInfo ci) {
         Mob mob = (Mob) (Object) this;
 
-        if (level instanceof ServerLevel && mob instanceof Animal animal && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (level instanceof ServerLevel && mob instanceof Animal animal) {
             FarmAnimalGoals.addGoals(animal, goalSelector);
         }
     }

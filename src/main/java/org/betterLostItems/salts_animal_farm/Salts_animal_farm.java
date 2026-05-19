@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 public class Salts_animal_farm implements ModInitializer {
     public static final String MOD_ID = "salts_animal_farm";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static SaltsAnimalFarmConfig CONFIG = SaltsAnimalFarmConfig.DEFAULT;
+    public static volatile SaltsAnimalFarmConfig CONFIG = SaltsAnimalFarmConfig.DEFAULT;
 
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MOD_ID, path);
@@ -23,14 +23,17 @@ public class Salts_animal_farm implements ModInitializer {
     public void onInitialize() {
         CONFIG = SaltsAnimalFarmConfig.load();
         SaltsAnimalFarmNetworking.registerPayloads();
-
-        if (!CONFIG.modEnabled()) {
-            LOGGER.info("Salt's Animal Farm is disabled by config");
-            return;
-        }
-
         AnimalFarmDebugDataSender.register();
         AnimalFarmDebugCommands.register();
         FarmAnimalFearHandler.register();
+
+        if (!CONFIG.modEnabled()) {
+            LOGGER.info("Salt's Animal Farm is disabled by config");
+        }
+    }
+
+    public static void updateConfig(SaltsAnimalFarmConfig config) {
+        CONFIG = config.sanitized();
+        SaltsAnimalFarmConfig.save(CONFIG);
     }
 }
