@@ -26,16 +26,28 @@ public final class SaltsAnimalFarmConfigLists {
     }
 
     public static boolean isFarmAnimal(Entity entity) {
+        if (!Salts_animal_farm.CONFIG.modEnabled()) {
+            return false;
+        }
+
         refreshIfNeeded();
         return farmAnimals.matches(entity);
     }
 
     public static boolean isScaryMob(Entity entity) {
+        if (!Salts_animal_farm.CONFIG.modEnabled()) {
+            return false;
+        }
+
         refreshIfNeeded();
         return scaryMobs.matches(entity);
     }
 
     public static boolean isSoftBlock(BlockState state) {
+        if (!Salts_animal_farm.CONFIG.modEnabled()) {
+            return false;
+        }
+
         refreshIfNeeded();
         return softBlocks.matches(state.getBlock());
     }

@@ -23,6 +23,12 @@ public class Salts_animal_farm implements ModInitializer {
     public void onInitialize() {
         CONFIG = SaltsAnimalFarmConfig.load();
         SaltsAnimalFarmNetworking.registerPayloads();
+
+        if (!CONFIG.modEnabled()) {
+            LOGGER.info("Salt's Animal Farm is disabled by config");
+            return;
+        }
+
         AnimalFarmDebugDataSender.register();
         AnimalFarmDebugCommands.register();
         FarmAnimalFearHandler.register();

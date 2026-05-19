@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 public record SaltsAnimalFarmConfig(
+        Boolean enableMod,
         @SerializedName("Farm Animals")
         List<String> farmAnimals,
         @SerializedName("Scary Mobs")
@@ -45,6 +46,7 @@ public record SaltsAnimalFarmConfig(
         boolean enableDetailedDebugInformation
 ) {
     public static final SaltsAnimalFarmConfig DEFAULT = new SaltsAnimalFarmConfig(
+            true,
             List.of(
                     "minecraft:cow",
                     "minecraft:mooshroom",
@@ -145,6 +147,7 @@ public record SaltsAnimalFarmConfig(
                 : maximumWeight;
 
         return new SaltsAnimalFarmConfig(
+                enableMod == null ? DEFAULT.modEnabled() : enableMod,
                 sanitizedList(farmAnimals, DEFAULT.farmAnimals),
                 sanitizedList(scaryMobs, DEFAULT.scaryMobs),
                 sanitizedList(softBlocks, DEFAULT.softBlocks),
@@ -175,6 +178,10 @@ public record SaltsAnimalFarmConfig(
 
     public boolean rainBehaviorEnabled() {
         return Boolean.TRUE.equals(enableRainBehavior);
+    }
+
+    public boolean modEnabled() {
+        return Boolean.TRUE.equals(enableMod);
     }
 
     private static int atLeast(int value, int minimum) {

@@ -59,6 +59,10 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
 
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
     private void salts_animal_farm$saveWeightData(ValueOutput output, CallbackInfo ci) {
+        if (!Salts_animal_farm.CONFIG.modEnabled()) {
+            return;
+        }
+
         ValueOutput data = output.child(SALTS_ANIMAL_FARM_DATA);
         data.putInt(WEIGHT, salts_animal_farm$getWeight());
         data.putInt(SUCCESSFUL_TASK_STREAK, salts_animal_farm$getSuccessfulTaskStreak());
@@ -72,6 +76,10 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
 
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))
     private void salts_animal_farm$readWeightData(ValueInput input, CallbackInfo ci) {
+        if (!Salts_animal_farm.CONFIG.modEnabled()) {
+            return;
+        }
+
         ValueInput data = input.childOrEmpty(SALTS_ANIMAL_FARM_DATA);
         salts_animal_farm$setWeight(data.getIntOr(WEIGHT, 0));
         salts_animal_farm$setSuccessfulTaskStreak(data.getIntOr(SUCCESSFUL_TASK_STREAK, 0));
@@ -88,7 +96,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private void salts_animal_farm$tickFarmAnimalData(ServerLevel level, CallbackInfo ci) {
         Animal animal = (Animal) (Object) this;
 
-        if (!SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (!Salts_animal_farm.CONFIG.modEnabled() || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
             return;
         }
 

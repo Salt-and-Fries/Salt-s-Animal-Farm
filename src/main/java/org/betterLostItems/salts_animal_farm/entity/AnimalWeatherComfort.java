@@ -14,7 +14,7 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean shouldSeekRainCover(Animal animal) {
-        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+        if (!Salts_animal_farm.CONFIG.modEnabled() || !Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
             return false;
         }
 
@@ -25,13 +25,14 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean isRainingInRainBiome(Animal animal) {
-        return Salts_animal_farm.CONFIG.rainBehaviorEnabled()
+        return Salts_animal_farm.CONFIG.modEnabled()
+                && Salts_animal_farm.CONFIG.rainBehaviorEnabled()
                 && animal.level().isRaining()
                 && animal.level().precipitationAt(animal.blockPosition()) == Biome.Precipitation.RAIN;
     }
 
     public static boolean isRainFallingAt(Level level, BlockPos pos) {
-        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+        if (!Salts_animal_farm.CONFIG.modEnabled() || !Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
             return false;
         }
 
@@ -53,7 +54,7 @@ public final class AnimalWeatherComfort {
     }
 
     public static boolean isFullyCovered(Animal animal) {
-        if (!Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
+        if (!Salts_animal_farm.CONFIG.modEnabled() || !Salts_animal_farm.CONFIG.rainBehaviorEnabled()) {
             return true;
         }
 

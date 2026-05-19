@@ -4,6 +4,8 @@ Idea was created by Reddit user [u/Axoladdy](https://www.reddit.com/user/Axoladd
 
 This mod does not add new blocks, items, entities, recipes, biomes, or dimensions. It changes farm animal behavior, animal rewards, weather reactions, fear reactions, and adds debug tools for testing those systems.
 
+The entire mod can be turned off with `enableMod` in the config. It defaults to `true`. When set to `false`, the mod does not add animal goals, alter loot, track farm data, react to rain or fear, register debug commands, or render debug labels.
+
 ## Farm Animal Weight
 
 Configured farm animals receive a persistent `weight` value from `0` to `8`.
@@ -228,6 +230,7 @@ config/salts_animal_farm.json
 
 Configurable values include:
 
+- Total mod enable toggle.
 - Farm animal entity list.
 - Scary mob entity list.
 - Soft block list.
