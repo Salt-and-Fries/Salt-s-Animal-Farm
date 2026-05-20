@@ -967,7 +967,7 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private boolean hasVisibleScaryMob() {
-        int radius = Salts_animal_farm.CONFIG.hostileScareRadius();
+        int radius = Salts_animal_farm.CONFIG.effectiveValues(animal.level()).hostileScareRadius();
         AABB area = animal.getBoundingBox().inflate(radius);
         return animal.level().hasEntities(
                 EntityTypeTest.forClass(LivingEntity.class),

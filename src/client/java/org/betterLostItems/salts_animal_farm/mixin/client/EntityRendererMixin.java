@@ -10,7 +10,9 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityAttachment;
 import net.minecraft.world.entity.animal.Animal;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
+import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.client.AnimalFarmClientDebug;
+import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,6 +28,14 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void salts_animal_farm$showFarmAnimalDebugData(T entity, S state, float tickDelta, CallbackInfo ci) {
+        if (Salts_animal_farm.CONFIG.modEnabled()
+                && entity instanceof Animal animal
+                && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+            AnimalFarmClientDebug.setSick(state, AnimalFarmClientDebug.isEntitySick(entity.getId()));
+        } else {
+            AnimalFarmClientDebug.clearSick(state);
+        }
+
         if (!Salts_animal_farm.CONFIG.modEnabled()
                 || !AnimalFarmClientDebug.shouldRenderDebugFarmData()
                 || !(entity instanceof Animal)) {

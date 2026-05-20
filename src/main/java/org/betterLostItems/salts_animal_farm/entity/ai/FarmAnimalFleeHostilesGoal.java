@@ -71,7 +71,7 @@ public class FarmAnimalFleeHostilesGoal extends Goal {
     }
 
     private LivingEntity findNearestHostile() {
-        int radius = Salts_animal_farm.CONFIG.hostileScareRadius();
+        int radius = Salts_animal_farm.CONFIG.effectiveValues(animal.level()).hostileScareRadius();
         AABB area = animal.getBoundingBox().inflate(radius);
         nearbyHostiles.clear();
         animal.level().getEntities(

@@ -16,5 +16,6 @@ public final class SaltsAnimalFarmNetworking {
         registered = true;
         PayloadTypeRegistry.clientboundPlay().register(RenderDebugFarmDataPayload.TYPE, RenderDebugFarmDataPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(FarmDebugDataPayload.TYPE, FarmDebugDataPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FarmAnimalStatePayload.TYPE, FarmAnimalStatePayload.CODEC);
     }
 }

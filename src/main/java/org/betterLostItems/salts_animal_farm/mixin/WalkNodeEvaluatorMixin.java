@@ -47,7 +47,7 @@ public abstract class WalkNodeEvaluatorMixin {
     }
 
     private boolean hasVisibleScaryMob(Animal animal) {
-        AABB area = animal.getBoundingBox().inflate(Salts_animal_farm.CONFIG.hostileScareRadius());
+        AABB area = animal.getBoundingBox().inflate(Salts_animal_farm.CONFIG.effectiveValues(animal.level()).hostileScareRadius());
         return animal.level().hasEntities(
                 EntityTypeTest.forClass(LivingEntity.class),
                 area,

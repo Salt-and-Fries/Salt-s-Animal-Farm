@@ -29,7 +29,7 @@ public final class FarmAnimalFearHandler {
             return;
         }
 
-        if (source.getEntity() instanceof Player) {
+        if (source.getEntity() instanceof Player && Salts_animal_farm.CONFIG.effectiveValues(animal.level()).loseWeightWhenHitByPlayer()) {
             frighten(animal, 2, Salts_animal_farm.CONFIG.franticDurationTicks());
         }
     }
@@ -39,7 +39,7 @@ public final class FarmAnimalFearHandler {
             return;
         }
 
-        if (source.getEntity() instanceof Player) {
+        if (source.getEntity() instanceof Player && Salts_animal_farm.CONFIG.effectiveValues(level).loseWeightWhenWitnessingAnimalDeath()) {
             panicWitnesses(level, killedAnimal);
         }
     }

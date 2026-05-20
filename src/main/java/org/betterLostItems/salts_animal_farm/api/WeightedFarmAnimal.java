@@ -1,5 +1,7 @@
 package org.betterLostItems.salts_animal_farm.api;
 
+import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
+
 public interface WeightedFarmAnimal {
     int salts_animal_farm$getWeight();
 
@@ -8,6 +10,10 @@ public interface WeightedFarmAnimal {
     int salts_animal_farm$getSuccessfulTaskStreak();
 
     void salts_animal_farm$setSuccessfulTaskStreak(int streak);
+
+    int salts_animal_farm$getFailedTaskStreak();
+
+    void salts_animal_farm$setFailedTaskStreak(int streak);
 
     int salts_animal_farm$getTotalSuccessfulTasks();
 
@@ -45,34 +51,53 @@ public interface WeightedFarmAnimal {
 
     String salts_animal_farm$consumeForcedComfortTask();
 
+    boolean salts_animal_farm$canBecomeSick();
+
+    void salts_animal_farm$setCanBecomeSick(boolean canBecomeSick);
+
+    SaltsAnimalFarmConfig.EffectiveValues salts_animal_farm$getEffectiveValues();
+
     default void salts_animal_farm$addWeight(int amount) {
         salts_animal_farm$setWeight(salts_animal_farm$getWeight() + amount);
     }
 
     default void salts_animal_farm$recordComfortSuccess() {
         int nextStreak = salts_animal_farm$getSuccessfulTaskStreak() + 1;
+        SaltsAnimalFarmConfig.EffectiveValues values = salts_animal_farm$getEffectiveValues();
         salts_animal_farm$setSuccessfulTaskStreak(nextStreak);
+        salts_animal_farm$setFailedTaskStreak(0);
         salts_animal_farm$setTotalSuccessfulTasks(salts_animal_farm$getTotalSuccessfulTasks() + 1);
         salts_animal_farm$setLastComfortTask(salts_animal_farm$getCurrentComfortTask());
         salts_animal_farm$setLastComfortTaskResult("Success");
         salts_animal_farm$setCurrentComfortTask("");
 
-        if (nextStreak >= 2) {
+        if (nextStreak >= values.positiveTaskStreakThreshold()) {
             salts_animal_farm$addWeight(1);
         }
     }
 
     default void salts_animal_farm$recordComfortFailure() {
-        salts_animal_farm$addWeight(-1);
+        int nextStreak = salts_animal_farm$getFailedTaskStreak() + 1;
+        SaltsAnimalFarmConfig.EffectiveValues values = salts_animal_farm$getEffectiveValues();
+        salts_animal_farm$setFailedTaskStreak(nextStreak);
+        salts_animal_farm$setSuccessfulTaskStreak(0);
         salts_animal_farm$setTotalFailedTasks(salts_animal_farm$getTotalFailedTasks() + 1);
         salts_animal_farm$setLastComfortTask(salts_animal_farm$getCurrentComfortTask());
         salts_animal_farm$setLastComfortTaskResult("Failed");
         salts_animal_farm$setCurrentComfortTask("");
-        salts_animal_farm$resetComfortStreak();
+
+        if (nextStreak >= values.negativeTaskStreakThreshold()) {
+            salts_animal_farm$addWeight(-1);
+        }
     }
 
     default void salts_animal_farm$resetComfortStreak() {
         salts_animal_farm$setSuccessfulTaskStreak(0);
+        salts_animal_farm$setFailedTaskStreak(0);
+    }
+
+    default boolean salts_animal_farm$isSick() {
+        return salts_animal_farm$getWeight() <= 0;
     }
 
     default boolean salts_animal_farm$isFrantic() {

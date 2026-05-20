@@ -39,6 +39,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.Difficulty;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -157,7 +158,13 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
     }
 
     private void buildSettingsEntries(SettingsList list) {
+        SaltsAnimalFarmConfig screenConfig = values.toConfig().sanitized();
+        SaltsAnimalFarmConfig.Preset selectedPreset = screenConfig.selectedPreset();
+        SaltsAnimalFarmConfig.EffectiveValues effectiveValues = screenConfig.effectiveValues(previewDifficulty());
+        boolean customPreset = selectedPreset == SaltsAnimalFarmConfig.Preset.CUSTOM;
+
         list.addSection("General");
+        list.addPreset("Preset", "Controls difficulty-tuned values. Dynamic follows the current world difficulty; Custom unlocks preset-controlled fields.", selectedPreset, this::setPreset);
         list.addBoolean(
                 "Enable Mod",
                 "Master switch for animal goals, weighted loot, fear, rain behavior, debug labels, and commands.",
@@ -170,8 +177,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                 values.enableRainBehavior,
                 value -> values.enableRainBehavior = value
         );
-        list.addInt("Minimum Weight", "Lowest clamped weight value an animal can have.", values.minimumWeight, value -> values.minimumWeight = value);
-        list.addInt("Maximum Weight", "Highest clamped weight value an animal can reach.", values.maximumWeight, value -> values.maximumWeight = value);
+        list.addInt("Minimum Weight", presetDescription("Lowest clamped weight value an animal can have.", customPreset), customPreset ? values.minimumWeight : effectiveValues.minimumWeight(), value -> values.minimumWeight = value, customPreset);
+        list.addInt("Maximum Weight", presetDescription("Highest clamped weight value an animal can reach.", customPreset), customPreset ? values.maximumWeight : effectiveValues.maximumWeight(), value -> values.maximumWeight = value, customPreset);
+        list.addInt("Positive Streak Threshold", presetDescription("Comfort successes in a row needed before each successful task starts adding weight.", customPreset), customPreset ? values.positiveTaskStreakThreshold : effectiveValues.positiveTaskStreakThreshold(), value -> values.positiveTaskStreakThreshold = value, customPreset);
+        list.addInt("Negative Streak Threshold", presetDescription("Comfort failures in a row needed before each failed task starts removing weight.", customPreset), customPreset ? values.negativeTaskStreakThreshold : effectiveValues.negativeTaskStreakThreshold(), value -> values.negativeTaskStreakThreshold = value, customPreset);
+        list.addDouble("Sick Movement Speed", "Movement speed multiplier used while an animal is sick at weight 0.", values.sickMovementSpeedMultiplier, value -> values.sickMovementSpeedMultiplier = value);
+        list.addBoolean(
+                "Allow Non-Bred Sickness",
+                "When enabled, spawn eggs, commands, natural spawns, and bred animals can all fall to weight 0.",
+                values.allowNonBredAnimalsToBecomeSick,
+                value -> values.allowNonBredAnimalsToBecomeSick = value
+        );
 
         list.addSection("Lists");
         list.addAction(
@@ -207,13 +223,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         list.addInt("Search Samples", "Extra random target samples checked after deterministic search.", values.comfortSearchSamples, value -> values.comfortSearchSamples = value);
 
         list.addSection("Hostile Fear");
-        list.addInt("Hostile Scare Radius", "Distance around a farm animal scanned for scary mobs.", values.hostileScareRadius, value -> values.hostileScareRadius = value);
+        list.addInt("Hostile Scare Radius", presetDescription("Distance around a farm animal scanned for scary mobs.", customPreset), customPreset ? values.hostileScareRadius : effectiveValues.hostileScareRadius(), value -> values.hostileScareRadius = value, customPreset);
         list.addInt("Scan Interval Ticks", "How often animals scan for scary mobs. Lower values react faster but do more work.", values.hostileScanIntervalTicks, value -> values.hostileScanIntervalTicks = value);
         list.addInt("Scan Random Offset Ticks", "Random offset applied to scare scans so animals do not all scan together.", values.hostileScanRandomOffsetTicks, value -> values.hostileScanRandomOffsetTicks = value);
         list.addInt("Scare Cooldown Ticks", "Minimum time before the same animal can lose weight again from hostile scare behavior.", values.hostileScareCooldownTicks, value -> values.hostileScareCooldownTicks = value);
         list.addDouble("Hostile Flee Speed", "Movement speed used when farm animals flee scary mobs.", values.hostileFleeSpeed, value -> values.hostileFleeSpeed = value);
 
         list.addSection("Frantic Fear");
+        list.addBoolean("Lose Weight When Hit", presetDescription("Animals lose weight and panic when damaged by a player.", customPreset), customPreset ? values.loseWeightWhenHitByPlayer : effectiveValues.loseWeightWhenHitByPlayer(), value -> values.loseWeightWhenHitByPlayer = value, customPreset);
+        list.addBoolean("Lose Weight From Witnessing Death", presetDescription("Animals lose weight and panic when seeing a player kill another farm animal.", customPreset), customPreset ? values.loseWeightWhenWitnessingAnimalDeath : effectiveValues.loseWeightWhenWitnessingAnimalDeath(), value -> values.loseWeightWhenWitnessingAnimalDeath = value, customPreset);
         list.addInt("Kill Witness Radius", "Distance from a player-caused animal death where other farm animals can witness it.", values.killWitnessRadius, value -> values.killWitnessRadius = value);
         list.addInt("Maximum Kill Witnesses", "Maximum number of nearby farm animals processed as witnesses.", values.maxKillWitnesses, value -> values.maxKillWitnesses = value);
         list.addInt("Frantic Duration Ticks", "How long farm animals remain frantic after player damage or death witnessing.", values.franticDurationTicks, value -> values.franticDurationTicks = value);
@@ -246,6 +264,34 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
     private void resetSoftBlocks() {
         values.softBlocks = new ArrayList<>(SaltsAnimalFarmConfig.DEFAULT.softBlocks());
         apply("Reset soft blocks");
+    }
+
+    private void setPreset(SaltsAnimalFarmConfig.Preset preset) {
+        if (preset == SaltsAnimalFarmConfig.Preset.CUSTOM && SaltsAnimalFarmConfig.Preset.bySerializedName(values.preset) != SaltsAnimalFarmConfig.Preset.CUSTOM) {
+            copyEffectivePresetValues(values.toConfig().sanitized().effectiveValues(previewDifficulty()));
+        }
+
+        values.preset = preset.serializedName();
+        apply("Updated preset");
+        rebuildMainScreen();
+    }
+
+    private void copyEffectivePresetValues(SaltsAnimalFarmConfig.EffectiveValues effectiveValues) {
+        values.minimumWeight = effectiveValues.minimumWeight();
+        values.maximumWeight = effectiveValues.maximumWeight();
+        values.positiveTaskStreakThreshold = effectiveValues.positiveTaskStreakThreshold();
+        values.negativeTaskStreakThreshold = effectiveValues.negativeTaskStreakThreshold();
+        values.hostileScareRadius = effectiveValues.hostileScareRadius();
+        values.loseWeightWhenHitByPlayer = effectiveValues.loseWeightWhenHitByPlayer();
+        values.loseWeightWhenWitnessingAnimalDeath = effectiveValues.loseWeightWhenWitnessingAnimalDeath();
+    }
+
+    private Difficulty previewDifficulty() {
+        return minecraft == null || minecraft.level == null ? Difficulty.NORMAL : minecraft.level.getDifficulty();
+    }
+
+    private static String presetDescription(String description, boolean editable) {
+        return editable ? description : description + " Locked by the selected preset.";
     }
 
     private void apply(String message) {
@@ -454,22 +500,37 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         }
 
         private void addBoolean(String label, String description, boolean value, Consumer<Boolean> setter) {
+            addBoolean(label, description, value, setter, true);
+        }
+
+        private void addBoolean(String label, String description, boolean value, Consumer<Boolean> setter, boolean active) {
             CycleButton<Boolean> control = CycleButton.onOffBuilder(value)
                     .displayOnlyValue()
                     .create(0, 0, 124, 20, Component.empty(), (button, selected) -> {
                         setter.accept(selected);
                         apply("Updated " + label.toLowerCase(Locale.ROOT));
                     });
+            control.active = active;
             addEntry(new WidgetEntry(font, label, description, control, 124), 38);
         }
 
         private void addInt(String label, String description, int value, IntConsumer setter) {
+            addInt(label, description, value, setter, true);
+        }
+
+        private void addInt(String label, String description, int value, IntConsumer setter, boolean active) {
             EditBox control = new EditBox(font, 0, 0, 96, 20, Component.literal(label));
             control.setMaxLength(12);
             control.setTextColor(NORMAL_TEXT);
             control.setTextColorUneditable(NORMAL_TEXT);
             control.setValue(Integer.toString(value));
+            control.setEditable(active);
+            control.active = active;
             control.setResponder(text -> {
+                if (!control.isActive()) {
+                    return;
+                }
+
                 try {
                     setter.accept(Integer.parseInt(text.trim()));
                     control.setTextColor(NORMAL_TEXT);
@@ -483,12 +544,22 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         }
 
         private void addDouble(String label, String description, double value, Consumer<Double> setter) {
+            addDouble(label, description, value, setter, true);
+        }
+
+        private void addDouble(String label, String description, double value, Consumer<Double> setter, boolean active) {
             EditBox control = new EditBox(font, 0, 0, 96, 20, Component.literal(label));
             control.setMaxLength(12);
             control.setTextColor(NORMAL_TEXT);
             control.setTextColorUneditable(NORMAL_TEXT);
             control.setValue(Double.toString(value));
+            control.setEditable(active);
+            control.active = active;
             control.setResponder(text -> {
+                if (!control.isActive()) {
+                    return;
+                }
+
                 try {
                     setter.accept(Double.parseDouble(text.trim()));
                     control.setTextColor(NORMAL_TEXT);
@@ -499,6 +570,13 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                 }
             });
             addEntry(new WidgetEntry(font, label, description, control, 96), 38);
+        }
+
+        private void addPreset(String label, String description, SaltsAnimalFarmConfig.Preset value, Consumer<SaltsAnimalFarmConfig.Preset> setter) {
+            Button control = Button.builder(Component.literal(value.displayName()), button -> setter.accept(value.next()))
+                    .bounds(0, 0, 124, 20)
+                    .build();
+            addEntry(new WidgetEntry(font, label, description, control, 124), 38);
         }
 
         private void addAction(String label, SummarySupplier summarySupplier, String description, Runnable action) {
@@ -2076,8 +2154,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         private List<String> farmAnimals;
         private List<String> scaryMobs;
         private List<String> softBlocks;
+        private String preset;
         private int minimumWeight;
         private int maximumWeight;
+        private int positiveTaskStreakThreshold;
+        private int negativeTaskStreakThreshold;
+        private boolean loseWeightWhenHitByPlayer;
+        private boolean loseWeightWhenWitnessingAnimalDeath;
+        private double sickMovementSpeedMultiplier;
+        private boolean allowNonBredAnimalsToBecomeSick;
         private boolean enableRainBehavior;
         private int comfortTaskAverageDelayTicks;
         private int comfortTaskDelayJitterTicks;
@@ -2111,8 +2196,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             farmAnimals = new ArrayList<>(config.farmAnimals());
             scaryMobs = new ArrayList<>(config.scaryMobs());
             softBlocks = new ArrayList<>(config.softBlocks());
+            preset = config.selectedPreset().serializedName();
             minimumWeight = config.minimumWeight();
             maximumWeight = config.maximumWeight();
+            positiveTaskStreakThreshold = config.positiveTaskStreakThreshold();
+            negativeTaskStreakThreshold = config.negativeTaskStreakThreshold();
+            loseWeightWhenHitByPlayer = config.loseWeightWhenHitByPlayer();
+            loseWeightWhenWitnessingAnimalDeath = config.loseWeightWhenWitnessingAnimalDeath();
+            sickMovementSpeedMultiplier = config.sanitizedSickMovementSpeedMultiplier();
+            allowNonBredAnimalsToBecomeSick = config.nonBredAnimalsCanBecomeSick();
             enableRainBehavior = config.rainBehaviorEnabled();
             comfortTaskAverageDelayTicks = config.comfortTaskAverageDelayTicks();
             comfortTaskDelayJitterTicks = config.comfortTaskDelayJitterTicks();
@@ -2142,8 +2234,15 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                     farmAnimals,
                     scaryMobs,
                     softBlocks,
+                    preset,
                     minimumWeight,
                     maximumWeight,
+                    positiveTaskStreakThreshold,
+                    negativeTaskStreakThreshold,
+                    loseWeightWhenHitByPlayer,
+                    loseWeightWhenWitnessingAnimalDeath,
+                    sickMovementSpeedMultiplier,
+                    allowNonBredAnimalsToBecomeSick,
                     enableRainBehavior,
                     comfortTaskAverageDelayTicks,
                     comfortTaskDelayJitterTicks,

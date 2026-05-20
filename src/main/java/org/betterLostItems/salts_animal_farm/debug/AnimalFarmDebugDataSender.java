@@ -88,7 +88,8 @@ public final class AnimalFarmDebugDataSender {
                 "Farm Debug: " + animal.getType().toShortString(),
                 "Weight: " + weightedAnimal.salts_animal_farm$getWeight() + " | Age: " + animal.getAge(),
                 "Task: " + currentTask + " | Last: " + lastTask + " " + lastResult,
-                "Streak: " + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
+                "Streak: +" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
+                        + " / -" + weightedAnimal.salts_animal_farm$getFailedTaskStreak()
                         + " | Success: " + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks()
                         + " | Fail: " + weightedAnimal.salts_animal_farm$getTotalFailedTasks(),
                 "Frantic: " + weightedAnimal.salts_animal_farm$getFranticTicks()

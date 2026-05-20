@@ -6,6 +6,7 @@ import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
 import org.betterLostItems.salts_animal_farm.debug.AnimalFarmDebugDataSender;
 import org.betterLostItems.salts_animal_farm.debug.AnimalFarmDebugCommands;
 import org.betterLostItems.salts_animal_farm.entity.FarmAnimalFearHandler;
+import org.betterLostItems.salts_animal_farm.entity.FarmAnimalStateSender;
 import org.betterLostItems.salts_animal_farm.entity.FarmAnimalWeightInteractionHandler;
 import org.betterLostItems.salts_animal_farm.network.SaltsAnimalFarmNetworking;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ public class Salts_animal_farm implements ModInitializer {
     public void onInitialize() {
         CONFIG = SaltsAnimalFarmConfig.load();
         SaltsAnimalFarmNetworking.registerPayloads();
+        FarmAnimalStateSender.register();
         AnimalFarmDebugDataSender.register();
         AnimalFarmDebugCommands.register();
         FarmAnimalFearHandler.register();

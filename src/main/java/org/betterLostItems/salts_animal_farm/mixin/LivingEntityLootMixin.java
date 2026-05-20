@@ -4,6 +4,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
@@ -18,11 +19,24 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.function.Consumer;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityLootMixin {
+    @Inject(method = "getExperienceReward", at = @At("HEAD"), cancellable = true)
+    private void salts_animal_farm$preventSickFarmAnimalExperience(ServerLevel level, Entity killer, CallbackInfoReturnable<Integer> cir) {
+        LivingEntity entity = (LivingEntity) (Object) this;
+
+        if (entity instanceof Animal animal
+                && entity instanceof WeightedFarmAnimal weightedAnimal
+                && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                && weightedAnimal.salts_animal_farm$isSick()) {
+            cir.setReturnValue(0);
+        }
+    }
+
     @Inject(
             method = "dropFromLootTable(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/damagesource/DamageSource;ZLnet/minecraft/resources/ResourceKey;Ljava/util/function/Consumer;)V",
             at = @At("HEAD"),

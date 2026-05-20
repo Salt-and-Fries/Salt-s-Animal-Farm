@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.LevelAccessor;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 
 import java.io.IOException;
@@ -21,8 +23,15 @@ public record SaltsAnimalFarmConfig(
         List<String> scaryMobs,
         @SerializedName("Soft Blocks")
         List<String> softBlocks,
+        String preset,
         int minimumWeight,
         int maximumWeight,
+        Integer positiveTaskStreakThreshold,
+        Integer negativeTaskStreakThreshold,
+        Boolean loseWeightWhenHitByPlayer,
+        Boolean loseWeightWhenWitnessingAnimalDeath,
+        Double sickMovementSpeedMultiplier,
+        Boolean allowNonBredAnimalsToBecomeSick,
         Boolean enableRainBehavior,
         int comfortTaskAverageDelayTicks,
         int comfortTaskDelayJitterTicks,
@@ -80,8 +89,15 @@ public record SaltsAnimalFarmConfig(
                     "minecraft:pale_moss_block",
                     "minecraft:pale_moss_carpet"
             ),
+            Preset.DYNAMIC.serializedName(),
             1,
             8,
+            2,
+            1,
+            true,
+            false,
+            0.7D,
+            false,
             true,
             4000,
             2000,
@@ -151,6 +167,7 @@ public record SaltsAnimalFarmConfig(
     }
 
     public SaltsAnimalFarmConfig sanitized() {
+        Preset sanitizedPreset = Preset.bySerializedName(preset);
         int sanitizedMinimumWeight = Math.max(minimumWeight, 0);
         int sanitizedMaximumWeight = maximumWeight <= sanitizedMinimumWeight
                 ? Math.max(DEFAULT.maximumWeight, sanitizedMinimumWeight)
@@ -161,8 +178,15 @@ public record SaltsAnimalFarmConfig(
                 sanitizedList(farmAnimals, DEFAULT.farmAnimals),
                 sanitizedList(scaryMobs, DEFAULT.scaryMobs),
                 sanitizedList(softBlocks, DEFAULT.softBlocks),
+                sanitizedPreset.serializedName(),
                 sanitizedMinimumWeight,
                 sanitizedMaximumWeight,
+                positiveTaskStreakThreshold == null ? DEFAULT.positiveTaskStreakThreshold : atLeast(positiveTaskStreakThreshold, 1),
+                negativeTaskStreakThreshold == null ? DEFAULT.negativeTaskStreakThreshold : atLeast(negativeTaskStreakThreshold, 1),
+                loseWeightWhenHitByPlayer == null ? DEFAULT.loseWeightWhenHitByPlayer : loseWeightWhenHitByPlayer,
+                loseWeightWhenWitnessingAnimalDeath == null ? DEFAULT.loseWeightWhenWitnessingAnimalDeath : loseWeightWhenWitnessingAnimalDeath,
+                sickMovementSpeedMultiplier == null ? DEFAULT.sickMovementSpeedMultiplier : atLeast(sickMovementSpeedMultiplier, 0.05D),
+                allowNonBredAnimalsToBecomeSick == null ? DEFAULT.allowNonBredAnimalsToBecomeSick : allowNonBredAnimalsToBecomeSick,
                 enableRainBehavior == null ? DEFAULT.rainBehaviorEnabled() : enableRainBehavior,
                 atLeast(comfortTaskAverageDelayTicks, 200),
                 Math.max(comfortTaskDelayJitterTicks, 0),
@@ -195,6 +219,41 @@ public record SaltsAnimalFarmConfig(
         return Boolean.TRUE.equals(enableMod);
     }
 
+    public Preset selectedPreset() {
+        return Preset.bySerializedName(preset);
+    }
+
+    public EffectiveValues effectiveValues(LevelAccessor level) {
+        Difficulty difficulty = level == null ? Difficulty.NORMAL : level.getDifficulty();
+        return effectiveValues(difficulty);
+    }
+
+    public EffectiveValues effectiveValues(Difficulty difficulty) {
+        Preset selected = selectedPreset();
+        Preset effectivePreset = selected == Preset.DYNAMIC ? Preset.forDifficulty(difficulty) : selected;
+        return effectivePreset == Preset.CUSTOM ? customValues() : effectivePreset.difficultyValues();
+    }
+
+    public boolean nonBredAnimalsCanBecomeSick() {
+        return Boolean.TRUE.equals(allowNonBredAnimalsToBecomeSick);
+    }
+
+    public double sanitizedSickMovementSpeedMultiplier() {
+        return sickMovementSpeedMultiplier == null ? DEFAULT.sickMovementSpeedMultiplier : atLeast(sickMovementSpeedMultiplier, 0.05D);
+    }
+
+    private EffectiveValues customValues() {
+        return new EffectiveValues(
+                minimumWeight,
+                maximumWeight,
+                positiveTaskStreakThreshold == null ? DEFAULT.positiveTaskStreakThreshold : positiveTaskStreakThreshold,
+                negativeTaskStreakThreshold == null ? DEFAULT.negativeTaskStreakThreshold : negativeTaskStreakThreshold,
+                hostileScareRadius,
+                Boolean.TRUE.equals(loseWeightWhenHitByPlayer),
+                Boolean.TRUE.equals(loseWeightWhenWitnessingAnimalDeath)
+        );
+    }
+
     private static int atLeast(int value, int minimum) {
         return Math.max(value, minimum);
     }
@@ -212,5 +271,71 @@ public record SaltsAnimalFarmConfig(
                 .filter(value -> value != null && !value.isBlank())
                 .map(String::trim)
                 .toList();
+    }
+
+    public enum Preset {
+        DYNAMIC("dynamic", "Dynamic", null),
+        EASY("easy", "Easy", new EffectiveValues(1, 10, 1, 2, 6, false, false)),
+        NORMAL("normal", "Normal", new EffectiveValues(1, 8, 2, 1, 12, true, false)),
+        HARD("hard", "Hard", new EffectiveValues(0, 8, 2, 1, 16, true, true)),
+        CUSTOM("custom", "Custom", null);
+
+        private final String serializedName;
+        private final String displayName;
+        private final EffectiveValues values;
+
+        Preset(String serializedName, String displayName, EffectiveValues values) {
+            this.serializedName = serializedName;
+            this.displayName = displayName;
+            this.values = values;
+        }
+
+        public String serializedName() {
+            return serializedName;
+        }
+
+        public String displayName() {
+            return displayName;
+        }
+
+        public EffectiveValues difficultyValues() {
+            return values;
+        }
+
+        public Preset next() {
+            Preset[] presets = values();
+            return presets[(ordinal() + 1) % presets.length];
+        }
+
+        public static Preset bySerializedName(String name) {
+            if (name != null) {
+                for (Preset preset : values()) {
+                    if (preset.serializedName.equalsIgnoreCase(name) || preset.displayName.equalsIgnoreCase(name)) {
+                        return preset;
+                    }
+                }
+            }
+
+            return DYNAMIC;
+        }
+
+        private static Preset forDifficulty(Difficulty difficulty) {
+            return switch (difficulty == null ? Difficulty.NORMAL : difficulty) {
+                case PEACEFUL, EASY -> EASY;
+                case NORMAL -> NORMAL;
+                case HARD -> HARD;
+            };
+        }
+    }
+
+    public record EffectiveValues(
+            int minimumWeight,
+            int maximumWeight,
+            int positiveTaskStreakThreshold,
+            int negativeTaskStreakThreshold,
+            int hostileScareRadius,
+            boolean loseWeightWhenHitByPlayer,
+            boolean loseWeightWhenWitnessingAnimalDeath
+    ) {
     }
 }
