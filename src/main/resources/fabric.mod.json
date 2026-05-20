@@ -3,7 +3,7 @@
   "id": "salts_animal_farm",
   "version": "${version}",
   "name": "Salt's Animal Farm",
-  "description": "Adds richer farm animal behavior with comfort tasks, weather reactions, fear responses, weight-based loot, and debug tools.",
+  "description": "Idea was created by Reddit user u/Axoladdy. Adds richer farm animal behavior with comfort tasks, weather reactions, fear responses, weight-based loot, and debug tools.",
   "authors": [],
   "contact": {},
   "license": "MIT",

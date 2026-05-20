@@ -4,6 +4,7 @@
   "package": "org.betterLostItems.salts_animal_farm.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
+    "EntityRenderDispatcherAccessor",
     "EntityRendererMixin"
   ],
   "injectors": {
