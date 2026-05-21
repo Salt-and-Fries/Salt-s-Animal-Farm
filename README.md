@@ -253,16 +253,17 @@ The mod registers custom clientbound payloads for:
 
 - Toggling farm debug label rendering.
 - Sending per-animal debug label data to clients.
+- Sending per-animal sick state data to clients.
 
 The client renderer replaces normal animal name tag rendering with stacked debug lines only when the debug overlay is enabled.
 
 ## Mixins And Integration Points
 
-The mod uses mixins and Fabric events to add its behavior:
+The mod uses mixins plus loader-specific Fabric and NeoForge event adapters to add its behavior:
 
 - Animal save data stores weight, streaks, task state, fear state, and rain exposure.
 - Mob construction injects farm animal goals.
 - Living entity loot is replaced for configured farm animals.
 - Walk node evaluation blocks exposed rain paths for sheltered animals while rain behavior is enabled.
 - Client entity rendering shows debug labels.
-- Fabric server events handle damage, death witnesses, ticking debug data, and commands.
+- Loader server events handle damage, death witnesses, ticking debug data, commands, and empty-hand animal interactions.
