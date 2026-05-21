@@ -17,6 +17,7 @@ import org.betterLostItems.salts_animal_farm.entity.FarmAnimalStateSender;
 import org.betterLostItems.salts_animal_farm.entity.FarmAnimalWeightInteractionHandler;
 import org.betterLostItems.salts_animal_farm.network.FarmAnimalStatePayload;
 import org.betterLostItems.salts_animal_farm.network.FarmDebugDataPayload;
+import org.betterLostItems.salts_animal_farm.network.OpenConfigScreenPayload;
 import org.betterLostItems.salts_animal_farm.network.RenderDebugFarmDataPayload;
 import org.betterLostItems.salts_animal_farm.platform.SaltsAnimalFarmPlatform;
 
@@ -38,6 +39,7 @@ public final class SaltsAnimalFarmFabric implements ModInitializer {
     }
 
     private static void registerPayloads() {
+        PayloadTypeRegistry.clientboundPlay().register(OpenConfigScreenPayload.TYPE, OpenConfigScreenPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RenderDebugFarmDataPayload.TYPE, RenderDebugFarmDataPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(FarmDebugDataPayload.TYPE, FarmDebugDataPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(FarmAnimalStatePayload.TYPE, FarmAnimalStatePayload.CODEC);

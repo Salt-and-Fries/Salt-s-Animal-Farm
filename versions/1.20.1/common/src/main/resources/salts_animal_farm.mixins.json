@@ -1,0 +1,24 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "refmap": "salts_animal_farm.refmap.json",
+  "package": "org.betterLostItems.salts_animal_farm.mixin",
+  "compatibilityLevel": "JAVA_${java_version}",
+  "mixins": [
+    "AnimalMixin",
+    "LivingEntityLootMixin",
+    "LivingEntitySoundAccessor",
+    "MobMixin",
+    "WalkNodeEvaluatorMixin"
+  ],
+  "client": [
+    "client.EntityRendererMixin",
+    "client.LivingEntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

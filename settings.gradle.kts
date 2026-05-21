@@ -22,7 +22,7 @@ pluginManagement {
 }
 
 plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
     id("dev.prism.settings") version "0.5.12"
 }
 
@@ -33,5 +33,20 @@ prism {
         common()
         fabric()
         neoforge()
+    }
+    version("1.21.11") {
+        common()
+        fabric()
+        neoforge()
+    }
+    version("1.21.1") {
+        common()
+        fabric()
+        neoforge()
+    }
+    version("1.20.1") {
+        common()
+        fabric()
+        forge()
     }
 }
