@@ -55,6 +55,10 @@ public interface WeightedFarmAnimal {
 
     void salts_animal_farm$setCanBecomeSick(boolean canBecomeSick);
 
+    boolean salts_animal_farm$wasBred();
+
+    void salts_animal_farm$setBred(boolean bred);
+
     SaltsAnimalFarmConfig.EffectiveValues salts_animal_farm$getEffectiveValues();
 
     default void salts_animal_farm$addWeight(int amount) {

@@ -200,6 +200,7 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         intRow(rows, "Negative Streak Threshold", presetDescription("Comfort failures in a row needed before each failed task starts removing weight.", customPreset), () -> customPreset ? values.negativeTaskStreakThreshold : effectiveValues.negativeTaskStreakThreshold(), value -> values.negativeTaskStreakThreshold = value, () -> customPreset);
         doubleRow(rows, "Sick Movement Speed", "Movement speed multiplier used while an animal is sick at weight 0.", () -> values.sickMovementSpeedMultiplier, value -> values.sickMovementSpeedMultiplier = value);
         bool(rows, "Allow Non-Bred Sickness", "When enabled, spawn eggs, commands, natural spawns, and bred animals can all fall to weight 0.", () -> values.allowNonBredAnimalsToBecomeSick, value -> values.allowNonBredAnimalsToBecomeSick = value);
+        bool(rows, "Bred Animals Only", "When enabled, only animals born from breeding use weight, comfort, sickness, fear, and weighted loot behavior.", () -> values.onlyBredAnimalsUseWeightAndComfort, value -> values.onlyBredAnimalsUseWeightAndComfort = value);
 
         section(rows, "Lists");
         rows.add(new ActionRow("Farm Animals", () -> selectionSummary(values.farmAnimals, "entry", "entries"), "Choose which mobs receive farm-animal behavior and weight data.", () -> minecraft.setScreen(new MobPickerScreen(this, MobListKind.FARM_ANIMALS))));
@@ -218,6 +219,10 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         intRow(rows, "Search Radius", "Horizontal block search radius for soft blocks and shelter.", () -> values.comfortSearchRadius, value -> values.comfortSearchRadius = value);
         intRow(rows, "Vertical Search", "Vertical block search range around the animal.", () -> values.comfortVerticalSearch, value -> values.comfortVerticalSearch = value);
         intRow(rows, "Search Samples", "Number of nearby candidates checked per task attempt.", () -> values.comfortSearchSamples, value -> values.comfortSearchSamples = value);
+        intRow(rows, "Space Retarget Ticks", "Minimum delay before an active space task searches for a better target.", () -> values.comfortSpaceRetargetIntervalTicks, value -> values.comfortSpaceRetargetIntervalTicks = value);
+        intRow(rows, "Max Path Checks Per Search", "Maximum comfort pathfinding checks one target search can spend before deferring.", () -> values.comfortMaxPathChecksPerSearch, value -> values.comfortMaxPathChecksPerSearch = value);
+        intRow(rows, "Pathfinding Budget Per Tick", "Shared comfort pathfinding checks allowed each server tick.", () -> values.comfortPathfindingBudgetPerTick, value -> values.comfortPathfindingBudgetPerTick = value);
+        intRow(rows, "Outcome Copy Radius", "Radius for copying recent direct comfort outcomes from nearby farm animals. Set to 0 to disable.", () -> values.comfortOutcomeCopyRadius, value -> values.comfortOutcomeCopyRadius = value);
 
         section(rows, "Hostile Avoidance");
         intRow(rows, "Hostile Scare Radius", "Distance used to find scary mobs around farm animals.", () -> values.hostileScareRadius, value -> values.hostileScareRadius = value);
@@ -1695,12 +1700,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         private boolean loseWeightWhenWitnessingAnimalDeath;
         private double sickMovementSpeedMultiplier;
         private boolean allowNonBredAnimalsToBecomeSick;
+        private boolean onlyBredAnimalsUseWeightAndComfort;
         private boolean enableRainBehavior;
         private int comfortTaskAverageDelayTicks;
         private int comfortTaskDelayJitterTicks;
         private int comfortSearchRadius;
         private int comfortVerticalSearch;
         private int comfortSearchSamples;
+        private int comfortSpaceRetargetIntervalTicks;
+        private int comfortMaxPathChecksPerSearch;
+        private int comfortPathfindingBudgetPerTick;
+        private int comfortOutcomeCopyRadius;
         private int comfortLingerTicks;
         private int comfortTaskReachTimeoutTicks;
         private int comfortMaxTaskTicks;
@@ -1737,12 +1747,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             loseWeightWhenWitnessingAnimalDeath = config.loseWeightWhenWitnessingAnimalDeath();
             sickMovementSpeedMultiplier = config.sanitizedSickMovementSpeedMultiplier();
             allowNonBredAnimalsToBecomeSick = config.nonBredAnimalsCanBecomeSick();
+            onlyBredAnimalsUseWeightAndComfort = config.bredAnimalsOnlyUseWeightAndComfort();
             enableRainBehavior = config.rainBehaviorEnabled();
             comfortTaskAverageDelayTicks = config.comfortTaskAverageDelayTicks();
             comfortTaskDelayJitterTicks = config.comfortTaskDelayJitterTicks();
             comfortSearchRadius = config.comfortSearchRadius();
             comfortVerticalSearch = config.comfortVerticalSearch();
             comfortSearchSamples = config.comfortSearchSamples();
+            comfortSpaceRetargetIntervalTicks = config.comfortSpaceRetargetIntervalTicks();
+            comfortMaxPathChecksPerSearch = config.comfortMaxPathChecksPerSearch();
+            comfortPathfindingBudgetPerTick = config.comfortPathfindingBudgetPerTick();
+            comfortOutcomeCopyRadius = config.comfortOutcomeCopyRadius();
             comfortLingerTicks = config.comfortLingerTicks();
             comfortTaskReachTimeoutTicks = config.comfortTaskReachTimeoutTicks();
             comfortMaxTaskTicks = config.comfortMaxTaskTicks();
@@ -1775,12 +1790,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                     loseWeightWhenWitnessingAnimalDeath,
                     sickMovementSpeedMultiplier,
                     allowNonBredAnimalsToBecomeSick,
+                    onlyBredAnimalsUseWeightAndComfort,
                     enableRainBehavior,
                     comfortTaskAverageDelayTicks,
                     comfortTaskDelayJitterTicks,
                     comfortSearchRadius,
                     comfortVerticalSearch,
                     comfortSearchSamples,
+                    comfortSpaceRetargetIntervalTicks,
+                    comfortMaxPathChecksPerSearch,
+                    comfortPathfindingBudgetPerTick,
+                    comfortOutcomeCopyRadius,
                     comfortLingerTicks,
                     comfortTaskReachTimeoutTicks,
                     comfortMaxTaskTicks,

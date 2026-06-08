@@ -46,7 +46,7 @@ public final class FarmAnimalStateSender {
         List<Animal> animals = player.level().getEntities(
                 EntityTypeTest.forClass(Animal.class),
                 area,
-                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)
         );
         List<FarmAnimalStatePayload.Entry> entries = new ArrayList<>(animals.size());
 

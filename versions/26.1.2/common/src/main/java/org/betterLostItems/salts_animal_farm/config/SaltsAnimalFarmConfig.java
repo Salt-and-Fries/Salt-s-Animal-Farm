@@ -31,12 +31,17 @@ public record SaltsAnimalFarmConfig(
         Boolean loseWeightWhenWitnessingAnimalDeath,
         Double sickMovementSpeedMultiplier,
         Boolean allowNonBredAnimalsToBecomeSick,
+        Boolean onlyBredAnimalsUseWeightAndComfort,
         Boolean enableRainBehavior,
         int comfortTaskAverageDelayTicks,
         int comfortTaskDelayJitterTicks,
         int comfortSearchRadius,
         int comfortVerticalSearch,
         int comfortSearchSamples,
+        Integer comfortSpaceRetargetIntervalTicks,
+        Integer comfortMaxPathChecksPerSearch,
+        Integer comfortPathfindingBudgetPerTick,
+        Integer comfortOutcomeCopyRadius,
         int comfortLingerTicks,
         int comfortTaskReachTimeoutTicks,
         int comfortMaxTaskTicks,
@@ -97,12 +102,17 @@ public record SaltsAnimalFarmConfig(
             false,
             0.7D,
             false,
-            true,
+            false,
+            false,
             4000,
             2000,
             12,
             4,
             28,
+            40,
+            12,
+            64,
+            0,
             20,
             200,
             600,
@@ -191,12 +201,17 @@ public record SaltsAnimalFarmConfig(
                 loseWeightWhenWitnessingAnimalDeath == null ? DEFAULT.loseWeightWhenWitnessingAnimalDeath : loseWeightWhenWitnessingAnimalDeath,
                 sickMovementSpeedMultiplier == null ? DEFAULT.sickMovementSpeedMultiplier : atLeast(sickMovementSpeedMultiplier, 0.05D),
                 allowNonBredAnimalsToBecomeSick == null ? DEFAULT.allowNonBredAnimalsToBecomeSick : allowNonBredAnimalsToBecomeSick,
+                onlyBredAnimalsUseWeightAndComfort == null ? DEFAULT.onlyBredAnimalsUseWeightAndComfort : onlyBredAnimalsUseWeightAndComfort,
                 enableRainBehavior == null ? DEFAULT.rainBehaviorEnabled() : enableRainBehavior,
                 atLeast(comfortTaskAverageDelayTicks, 200),
                 Math.max(comfortTaskDelayJitterTicks, 0),
                 atLeast(comfortSearchRadius, 2),
                 atLeast(comfortVerticalSearch, 1),
                 atLeast(comfortSearchSamples, 4),
+                atLeastOrDefault(comfortSpaceRetargetIntervalTicks, DEFAULT.comfortSpaceRetargetIntervalTicks, 10),
+                atLeastOrDefault(comfortMaxPathChecksPerSearch, DEFAULT.comfortMaxPathChecksPerSearch, 1),
+                atLeastOrDefault(comfortPathfindingBudgetPerTick, DEFAULT.comfortPathfindingBudgetPerTick, 8),
+                Math.max(comfortOutcomeCopyRadius == null ? DEFAULT.comfortOutcomeCopyRadius : comfortOutcomeCopyRadius, 0),
                 atLeast(comfortLingerTicks, 1),
                 atLeast(comfortTaskReachTimeoutTicks, 20),
                 atLeast(comfortMaxTaskTicks, 20),
@@ -242,6 +257,10 @@ public record SaltsAnimalFarmConfig(
         return Boolean.TRUE.equals(allowNonBredAnimalsToBecomeSick);
     }
 
+    public boolean bredAnimalsOnlyUseWeightAndComfort() {
+        return Boolean.TRUE.equals(onlyBredAnimalsUseWeightAndComfort);
+    }
+
     public double sanitizedSickMovementSpeedMultiplier() {
         return sickMovementSpeedMultiplier == null ? DEFAULT.sickMovementSpeedMultiplier : atLeast(sickMovementSpeedMultiplier, 0.05D);
     }
@@ -260,6 +279,10 @@ public record SaltsAnimalFarmConfig(
 
     private static int atLeast(int value, int minimum) {
         return Math.max(value, minimum);
+    }
+
+    private static int atLeastOrDefault(Integer value, int fallback, int minimum) {
+        return value == null || value <= 0 ? fallback : Math.max(value, minimum);
     }
 
     private static double atLeast(double value, double minimum) {

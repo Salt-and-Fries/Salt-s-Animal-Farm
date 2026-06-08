@@ -19,7 +19,7 @@ public final class FarmAnimalFearHandler {
     }
 
     public static void afterDamage(LivingEntity entity, DamageSource source, float damageTaken) {
-        if (!(entity instanceof Animal animal) || !entity.isAlive() || damageTaken <= 0.0F || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (!(entity instanceof Animal animal) || !entity.isAlive() || damageTaken <= 0.0F || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             return;
         }
 
@@ -29,7 +29,7 @@ public final class FarmAnimalFearHandler {
     }
 
     public static void afterDeath(LivingEntity entity, DamageSource source) {
-        if (!(entity.level() instanceof ServerLevel level) || !(entity instanceof Animal killedAnimal) || !SaltsAnimalFarmConfigLists.isFarmAnimal(killedAnimal)) {
+        if (!(entity.level() instanceof ServerLevel level) || !(entity instanceof Animal killedAnimal) || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(killedAnimal)) {
             return;
         }
 
@@ -45,7 +45,7 @@ public final class FarmAnimalFearHandler {
         level.getEntities(
                 EntityTypeTest.forClass(Animal.class),
                 area,
-                witness -> witness != killedAnimal && witness.isAlive() && SaltsAnimalFarmConfigLists.isFarmAnimal(witness),
+                witness -> witness != killedAnimal && witness.isAlive() && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(witness),
                 witnesses,
                 Salts_animal_farm.CONFIG.maxKillWitnesses()
         );
@@ -58,7 +58,7 @@ public final class FarmAnimalFearHandler {
     }
 
     public static void frighten(Animal animal, int weightLoss, int franticTicks) {
-        if (!(animal instanceof WeightedFarmAnimal weightedAnimal)) {
+        if (!(animal instanceof WeightedFarmAnimal weightedAnimal) || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             return;
         }
 

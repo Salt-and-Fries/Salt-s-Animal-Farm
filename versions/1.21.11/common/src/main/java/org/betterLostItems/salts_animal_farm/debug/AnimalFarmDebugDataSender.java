@@ -19,6 +19,7 @@ import java.util.UUID;
 public final class AnimalFarmDebugDataSender {
     private static final int SEND_INTERVAL_TICKS = 1;
     private static final double DEBUG_RADIUS = 48.0D;
+    private static final int MAX_DEBUG_ENTRIES = 128;
     private static final Set<UUID> ENABLED_PLAYERS = new HashSet<>();
     private static int tickCounter;
 
@@ -55,10 +56,13 @@ public final class AnimalFarmDebugDataSender {
 
     private static FarmDebugDataPayload buildPayload(ServerPlayer player) {
         AABB area = player.getBoundingBox().inflate(DEBUG_RADIUS);
-        List<Animal> animals = player.level().getEntities(
+        List<Animal> animals = new ArrayList<>(MAX_DEBUG_ENTRIES);
+        player.level().getEntities(
                 EntityTypeTest.forClass(Animal.class),
                 area,
-                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal),
+                animals,
+                MAX_DEBUG_ENTRIES
         );
         List<FarmDebugDataPayload.Entry> entries = new ArrayList<>(animals.size());
 

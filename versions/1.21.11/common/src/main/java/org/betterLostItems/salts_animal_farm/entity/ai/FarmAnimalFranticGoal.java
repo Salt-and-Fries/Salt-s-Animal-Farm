@@ -14,6 +14,7 @@ public class FarmAnimalFranticGoal extends Goal {
     private final Animal animal;
     private final WeightedFarmAnimal weightedAnimal;
     private int repathTicks;
+    private boolean hasMoveTarget;
 
     public FarmAnimalFranticGoal(Animal animal) {
         this.animal = animal;
@@ -23,12 +24,12 @@ public class FarmAnimalFranticGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return SaltsAnimalFarmConfigLists.isFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
+        return SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
     }
 
     @Override
     public boolean canContinueToUse() {
-        return weightedAnimal.salts_animal_farm$isFrantic();
+        return SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
     }
 
     @Override
@@ -41,13 +42,14 @@ public class FarmAnimalFranticGoal extends Goal {
     public void tick() {
         repathTicks--;
 
-        if (repathTicks <= 0 || animal.getNavigation().isDone()) {
+        if (repathTicks <= 0 || (hasMoveTarget && animal.getNavigation().isDone())) {
             moveSomewhere();
         }
     }
 
     @Override
     public void stop() {
+        hasMoveTarget = false;
         animal.getNavigation().stop();
     }
 
@@ -56,7 +58,10 @@ public class FarmAnimalFranticGoal extends Goal {
         Vec3 target = LandRandomPos.getPos(animal, 10, 5);
 
         if (target != null) {
+            hasMoveTarget = true;
             animal.getNavigation().moveTo(target.x, target.y, target.z, Salts_animal_farm.CONFIG.franticMoveSpeed());
+        } else {
+            hasMoveTarget = false;
         }
     }
 }

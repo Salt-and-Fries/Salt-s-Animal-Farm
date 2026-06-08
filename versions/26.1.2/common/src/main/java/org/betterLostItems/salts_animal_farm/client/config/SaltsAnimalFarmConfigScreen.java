@@ -188,6 +188,12 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                 values.allowNonBredAnimalsToBecomeSick,
                 value -> values.allowNonBredAnimalsToBecomeSick = value
         );
+        list.addBoolean(
+                "Bred Animals Only",
+                "When enabled, only animals born from breeding use weight, comfort, sickness, fear, and weighted loot behavior.",
+                values.onlyBredAnimalsUseWeightAndComfort,
+                value -> values.onlyBredAnimalsUseWeightAndComfort = value
+        );
 
         list.addSection("Lists");
         list.addAction(
@@ -221,6 +227,10 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         list.addInt("Search Radius", "Horizontal block radius used when finding comfort task targets.", values.comfortSearchRadius, value -> values.comfortSearchRadius = value);
         list.addInt("Vertical Search", "Vertical block range above and below the animal used during target search.", values.comfortVerticalSearch, value -> values.comfortVerticalSearch = value);
         list.addInt("Search Samples", "Extra random target samples checked after deterministic search.", values.comfortSearchSamples, value -> values.comfortSearchSamples = value);
+        list.addInt("Space Retarget Ticks", "Minimum delay before an active space task searches for a better target.", values.comfortSpaceRetargetIntervalTicks, value -> values.comfortSpaceRetargetIntervalTicks = value);
+        list.addInt("Max Path Checks Per Search", "Maximum comfort pathfinding checks one target search can spend before deferring.", values.comfortMaxPathChecksPerSearch, value -> values.comfortMaxPathChecksPerSearch = value);
+        list.addInt("Pathfinding Budget Per Tick", "Shared comfort pathfinding checks allowed each server tick.", values.comfortPathfindingBudgetPerTick, value -> values.comfortPathfindingBudgetPerTick = value);
+        list.addInt("Outcome Copy Radius", "Radius for copying recent direct comfort outcomes from nearby farm animals. Set to 0 to disable.", values.comfortOutcomeCopyRadius, value -> values.comfortOutcomeCopyRadius = value);
 
         list.addSection("Hostile Fear");
         list.addInt("Hostile Scare Radius", presetDescription("Distance around a farm animal scanned for scary mobs.", customPreset), customPreset ? values.hostileScareRadius : effectiveValues.hostileScareRadius(), value -> values.hostileScareRadius = value, customPreset);
@@ -2163,12 +2173,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
         private boolean loseWeightWhenWitnessingAnimalDeath;
         private double sickMovementSpeedMultiplier;
         private boolean allowNonBredAnimalsToBecomeSick;
+        private boolean onlyBredAnimalsUseWeightAndComfort;
         private boolean enableRainBehavior;
         private int comfortTaskAverageDelayTicks;
         private int comfortTaskDelayJitterTicks;
         private int comfortSearchRadius;
         private int comfortVerticalSearch;
         private int comfortSearchSamples;
+        private int comfortSpaceRetargetIntervalTicks;
+        private int comfortMaxPathChecksPerSearch;
+        private int comfortPathfindingBudgetPerTick;
+        private int comfortOutcomeCopyRadius;
         private int comfortLingerTicks;
         private int comfortTaskReachTimeoutTicks;
         private int comfortMaxTaskTicks;
@@ -2205,12 +2220,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
             loseWeightWhenWitnessingAnimalDeath = config.loseWeightWhenWitnessingAnimalDeath();
             sickMovementSpeedMultiplier = config.sanitizedSickMovementSpeedMultiplier();
             allowNonBredAnimalsToBecomeSick = config.nonBredAnimalsCanBecomeSick();
+            onlyBredAnimalsUseWeightAndComfort = config.bredAnimalsOnlyUseWeightAndComfort();
             enableRainBehavior = config.rainBehaviorEnabled();
             comfortTaskAverageDelayTicks = config.comfortTaskAverageDelayTicks();
             comfortTaskDelayJitterTicks = config.comfortTaskDelayJitterTicks();
             comfortSearchRadius = config.comfortSearchRadius();
             comfortVerticalSearch = config.comfortVerticalSearch();
             comfortSearchSamples = config.comfortSearchSamples();
+            comfortSpaceRetargetIntervalTicks = config.comfortSpaceRetargetIntervalTicks();
+            comfortMaxPathChecksPerSearch = config.comfortMaxPathChecksPerSearch();
+            comfortPathfindingBudgetPerTick = config.comfortPathfindingBudgetPerTick();
+            comfortOutcomeCopyRadius = config.comfortOutcomeCopyRadius();
             comfortLingerTicks = config.comfortLingerTicks();
             comfortTaskReachTimeoutTicks = config.comfortTaskReachTimeoutTicks();
             comfortMaxTaskTicks = config.comfortMaxTaskTicks();
@@ -2243,12 +2263,17 @@ public class SaltsAnimalFarmConfigScreen extends Screen {
                     loseWeightWhenWitnessingAnimalDeath,
                     sickMovementSpeedMultiplier,
                     allowNonBredAnimalsToBecomeSick,
+                    onlyBredAnimalsUseWeightAndComfort,
                     enableRainBehavior,
                     comfortTaskAverageDelayTicks,
                     comfortTaskDelayJitterTicks,
                     comfortSearchRadius,
                     comfortVerticalSearch,
                     comfortSearchSamples,
+                    comfortSpaceRetargetIntervalTicks,
+                    comfortMaxPathChecksPerSearch,
+                    comfortPathfindingBudgetPerTick,
+                    comfortOutcomeCopyRadius,
                     comfortLingerTicks,
                     comfortTaskReachTimeoutTicks,
                     comfortMaxTaskTicks,

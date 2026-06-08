@@ -7,9 +7,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
+import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
 
 import java.util.HashSet;
@@ -32,6 +34,18 @@ public final class SaltsAnimalFarmConfigLists {
 
         refreshIfNeeded();
         return farmAnimals.matches(entity);
+    }
+
+    public static boolean isManagedFarmAnimal(Animal animal) {
+        if (!isFarmAnimal(animal)) {
+            return false;
+        }
+
+        if (!Salts_animal_farm.CONFIG.bredAnimalsOnlyUseWeightAndComfort()) {
+            return true;
+        }
+
+        return animal instanceof WeightedFarmAnimal weightedAnimal && weightedAnimal.salts_animal_farm$wasBred();
     }
 
     public static boolean isScaryMob(Entity entity) {

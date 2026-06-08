@@ -23,7 +23,7 @@ public final class FarmAnimalWeightInteractionHandler {
                 || player.isSpectator()
                 || !(entity instanceof Animal animal)
                 || !(entity instanceof WeightedFarmAnimal weightedAnimal)
-                || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+                || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             return InteractionResult.PASS;
         }
 

@@ -7,7 +7,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.animal.Animal;
@@ -21,10 +20,14 @@ import net.minecraft.world.phys.Vec3;
 import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.config.SaltsAnimalFarmConfig;
+import org.betterLostItems.salts_animal_farm.entity.FarmAnimalComfortResultCache;
 import org.betterLostItems.salts_animal_farm.entity.AnimalWeatherComfort;
+import org.betterLostItems.salts_animal_farm.entity.FarmAnimalThreatCache;
 import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
 import org.betterLostItems.salts_animal_farm.mixin.LivingEntitySoundAccessor;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.function.Supplier;
@@ -34,8 +37,9 @@ public class AnimalComfortGoal extends Goal {
     private static final double FRIEND_RETARGET_DISTANCE_SQR = 4.0D;
     private static final double SPACE_CLEAR_RADIUS = 1.5D;
     private static final double SPACE_MOB_CLEAR_RADIUS = 1.5D;
-    private static final int SPACE_RETARGET_INTERVAL_TICKS = 10;
     private static final int COVER_TARGET_DEEPEN_RADIUS = 2;
+    private static long pathBudgetTick = Long.MIN_VALUE;
+    private static int pathBudgetUsedThisTick;
 
     private static final List<ComfortTask> DAY_TASKS = List.of(
             ComfortTask.SHADE,
@@ -75,6 +79,9 @@ public class AnimalComfortGoal extends Goal {
     private int nextRainCoverAttemptTick;
     private int activeTicks;
     private int lingerTicks;
+    private int pathChecksThisSearch;
+    private boolean pathBudgetExhausted;
+    private boolean pathSearchLimitReached;
 
     public AnimalComfortGoal(Animal animal) {
         this.animal = animal;
@@ -92,9 +99,9 @@ public class AnimalComfortGoal extends Goal {
             debug("forced task request rawTask='" + forcedTaskName + "'");
         }
 
-        if (!SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (!SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             if (forced) {
-                debug("canUse=false reason=not_configured_farm_animal");
+                debug("canUse=false reason=not_managed_farm_animal");
             }
             return false;
         }
@@ -144,6 +151,10 @@ public class AnimalComfortGoal extends Goal {
         BlockPos currentPos = animal.blockPosition();
         debug(() -> "selected task=" + task.taskName() + " forced=" + forced + " currentPos=" + posString(currentPos) + " currentCheck={" + taskCheckDetails(task, currentPos) + "}");
 
+        if (!forced && task != ComfortTask.COVER && copyRecentComfortOutcome(task)) {
+            return false;
+        }
+
         if (isCompletionSpot(task, currentPos)) {
             targetPos = currentPos;
             debug("task already satisfied at current position, starting linger currentPos=" + posString(currentPos));
@@ -153,6 +164,18 @@ public class AnimalComfortGoal extends Goal {
         targetPos = findTarget(task);
 
         if (targetPos == null) {
+            if (pathSearchDeferred()) {
+                debug(() -> "canUse=false reason=path_search_deferred task=" + task.taskName()
+                        + " pathChecksThisSearch=" + pathChecksThisSearch
+                        + " pathBudgetExhausted=" + pathBudgetExhausted
+                        + " pathSearchLimitReached=" + pathSearchLimitReached
+                        + " currentCheck={" + taskCheckDetails(task, currentPos) + "}");
+                scheduleDeferredPathRetry(task);
+                activeTask = null;
+                weightedAnimal.salts_animal_farm$setCurrentComfortTask("");
+                return false;
+            }
+
             if (task == ComfortTask.COVER) {
                 debug(() -> "canUse=false reason=no_cover_found task=" + task.taskName() + " rainExposureTicks=" + weightedAnimal.salts_animal_farm$getRainExposureTicks() + " currentCheck={" + taskCheckDetails(task, currentPos) + "}");
                 scheduleNextRainCoverAttempt();
@@ -172,6 +195,10 @@ public class AnimalComfortGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
+        if (!SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
+            return false;
+        }
+
         int maxTaskTicks = taskTimeoutTicks();
         if (targetPos == null || activeTicks >= maxTaskTicks) {
             if (activeTask != null) {
@@ -415,6 +442,8 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private BlockPos findTarget(ComfortTask task) {
+        beginPathSearch();
+
         if (task == ComfortTask.FRIEND) {
             return findFriendTarget();
         }
@@ -432,12 +461,14 @@ public class AnimalComfortGoal extends Goal {
         BlockPos origin = animal.blockPosition();
         int checked = 0;
         int validStandingSpots = 0;
+        beginPathSearch();
 
         debug("findTarget start task=" + task.taskName()
                 + " origin=" + posString(origin)
                 + " searchRadius=" + config.comfortSearchRadius()
                 + " verticalSearch=" + config.comfortVerticalSearch()
                 + " randomSamples=" + config.comfortSearchSamples());
+        deterministicSearch:
         for (int radius = 1; radius <= config.comfortSearchRadius(); radius++) {
             for (BlockPos candidate : BlockPos.betweenClosed(
                     origin.offset(-radius, -config.comfortVerticalSearch(), -radius),
@@ -457,24 +488,33 @@ public class AnimalComfortGoal extends Goal {
 
                 debugCandidate("deterministic", task, immutableCandidate, checked, validStandingSpot, matchesTask);
 
-                if (validStandingSpot && matchesTask && canNavigateTo(immutableCandidate)) {
-                    int loggedChecked = checked;
-                    int loggedValidStandingSpots = validStandingSpots;
-                    debug(() -> "findTarget success phase=deterministic task=" + task.taskName()
-                            + " target=" + posString(immutableCandidate)
-                            + " checked=" + loggedChecked
-                            + " validStandingSpots=" + loggedValidStandingSpots
-                            + " details={" + taskCheckDetails(task, immutableCandidate) + "}");
-                    return immutableCandidate;
-                } else if (validStandingSpot && matchesTask) {
+                if (validStandingSpot && matchesTask) {
+                    if (!canTryAnotherPath()) {
+                        break deterministicSearch;
+                    }
+
+                    if (canNavigateTo(immutableCandidate)) {
+                        int loggedChecked = checked;
+                        int loggedValidStandingSpots = validStandingSpots;
+                        debug(() -> "findTarget success phase=deterministic task=" + task.taskName()
+                                + " target=" + posString(immutableCandidate)
+                                + " checked=" + loggedChecked
+                                + " validStandingSpots=" + loggedValidStandingSpots
+                                + " details={" + taskCheckDetails(task, immutableCandidate) + "}");
+                        return immutableCandidate;
+                    }
+
                     debug("candidate rejected phase=deterministic task=" + task.taskName()
                             + " pos=" + posString(immutableCandidate)
-                            + " reason=no_path");
+                            + " reason=" + pathRejectReason());
+                    if (pathSearchDeferred()) {
+                        break deterministicSearch;
+                    }
                 }
             }
         }
 
-        for (int i = 0; i < config.comfortSearchSamples(); i++) {
+        for (int i = 0; !pathSearchDeferred() && i < config.comfortSearchSamples(); i++) {
             BlockPos candidate = origin.offset(
                     random.nextInt(config.comfortSearchRadius() * 2 + 1) - config.comfortSearchRadius(),
                     random.nextInt(config.comfortVerticalSearch() * 2 + 1) - config.comfortVerticalSearch(),
@@ -490,19 +530,28 @@ public class AnimalComfortGoal extends Goal {
 
             debugCandidate("random", task, candidate, checked, validStandingSpot, matchesTask);
 
-            if (validStandingSpot && matchesTask && canNavigateTo(candidate)) {
-                int loggedChecked = checked;
-                int loggedValidStandingSpots = validStandingSpots;
-                debug(() -> "findTarget success phase=random task=" + task.taskName()
-                        + " target=" + posString(candidate)
-                        + " checked=" + loggedChecked
-                        + " validStandingSpots=" + loggedValidStandingSpots
-                        + " details={" + taskCheckDetails(task, candidate) + "}");
-                return candidate;
-            } else if (validStandingSpot && matchesTask) {
+            if (validStandingSpot && matchesTask) {
+                if (!canTryAnotherPath()) {
+                    break;
+                }
+
+                if (canNavigateTo(candidate)) {
+                    int loggedChecked = checked;
+                    int loggedValidStandingSpots = validStandingSpots;
+                    debug(() -> "findTarget success phase=random task=" + task.taskName()
+                            + " target=" + posString(candidate)
+                            + " checked=" + loggedChecked
+                            + " validStandingSpots=" + loggedValidStandingSpots
+                            + " details={" + taskCheckDetails(task, candidate) + "}");
+                    return candidate;
+                }
+
                 debug("candidate rejected phase=random task=" + task.taskName()
                         + " pos=" + posString(candidate)
-                        + " reason=no_path");
+                        + " reason=" + pathRejectReason());
+                if (pathSearchDeferred()) {
+                    break;
+                }
             }
         }
 
@@ -520,12 +569,14 @@ public class AnimalComfortGoal extends Goal {
         CoverCandidate best = null;
         int checked = 0;
         int validStandingSpots = 0;
+        beginPathSearch();
 
         debug("findCoverTarget start origin=" + posString(origin)
                 + " searchRadius=" + config.comfortSearchRadius()
                 + " verticalSearch=" + config.comfortVerticalSearch()
                 + " randomSamples=" + config.comfortSearchSamples());
 
+        deterministicCoverSearch:
         for (int radius = 1; radius <= config.comfortSearchRadius(); radius++) {
             for (BlockPos candidate : BlockPos.betweenClosed(
                     origin.offset(-radius, -config.comfortVerticalSearch(), -radius),
@@ -546,11 +597,14 @@ public class AnimalComfortGoal extends Goal {
                 debugCandidate("deterministic", ComfortTask.COVER, immutableCandidate, checked, validStandingSpot, matchesTask);
                 if (matchesTask) {
                     best = chooseBetterCoverCandidate(best, evaluateCoverCandidate(origin, immutableCandidate, "deterministic"));
+                    if (pathSearchDeferred()) {
+                        break deterministicCoverSearch;
+                    }
                 }
             }
         }
 
-        for (int i = 0; i < config.comfortSearchSamples(); i++) {
+        for (int i = 0; !pathSearchDeferred() && i < config.comfortSearchSamples(); i++) {
             BlockPos candidate = origin.offset(
                     random.nextInt(config.comfortSearchRadius() * 2 + 1) - config.comfortSearchRadius(),
                     random.nextInt(config.comfortVerticalSearch() * 2 + 1) - config.comfortVerticalSearch(),
@@ -567,6 +621,9 @@ public class AnimalComfortGoal extends Goal {
             debugCandidate("random", ComfortTask.COVER, candidate, checked, validStandingSpot, matchesTask);
             if (matchesTask) {
                 best = chooseBetterCoverCandidate(best, evaluateCoverCandidate(origin, candidate, "random"));
+                if (pathSearchDeferred()) {
+                    break;
+                }
             }
         }
 
@@ -602,6 +659,9 @@ public class AnimalComfortGoal extends Goal {
 
     private CoverCandidate findDeepestNearbyCover(BlockPos origin, BlockPos seed) {
         CoverCandidate best = isPathExact(createPathTo(seed), seed) ? new CoverCandidate(seed, coverScore(origin, seed)) : null;
+        if (pathSearchDeferred()) {
+            return best;
+        }
 
         for (int dx = -COVER_TARGET_DEEPEN_RADIUS; dx <= COVER_TARGET_DEEPEN_RADIUS; dx++) {
             for (int dz = -COVER_TARGET_DEEPEN_RADIUS; dz <= COVER_TARGET_DEEPEN_RADIUS; dz++) {
@@ -616,6 +676,9 @@ public class AnimalComfortGoal extends Goal {
 
                 Path path = createPathTo(candidate);
                 if (!isPathExact(path, candidate)) {
+                    if (pathSearchDeferred()) {
+                        return best;
+                    }
                     continue;
                 }
 
@@ -642,10 +705,13 @@ public class AnimalComfortGoal extends Goal {
         SaltsAnimalFarmConfig config = Salts_animal_farm.CONFIG;
         RandomSource random = animal.getRandom();
         BlockPos origin = animal.blockPosition();
-        Vec3 crowdCenter = nearbyAnimalCenter(config.comfortSearchRadius());
+        SpaceSearchContext context = SpaceSearchContext.create(animal, config.comfortSearchRadius(), config.comfortVerticalSearch());
+        Vec3 crowdCenter = context.crowdCenter();
+        List<SpaceCandidate> candidates = new ArrayList<>();
         SpaceCandidate best = null;
         int checked = 0;
         int validStandingSpots = 0;
+        beginPathSearch();
 
         debug("findSpaceTarget start origin=" + posString(origin)
                 + " crowdCenter=" + vecString(crowdCenter)
@@ -664,7 +730,7 @@ public class AnimalComfortGoal extends Goal {
                 BlockPos immutableCandidate = candidate.immutable();
                 checked++;
                 boolean validStandingSpot = isValidStandingSpot(immutableCandidate);
-                boolean matchesTask = validStandingSpot && matchesTask(ComfortTask.SPACE, immutableCandidate);
+                boolean matchesTask = validStandingSpot && hasOpenSpace(immutableCandidate, context);
 
                 if (validStandingSpot) {
                     validStandingSpots++;
@@ -673,8 +739,7 @@ public class AnimalComfortGoal extends Goal {
                 debugCandidate("deterministic", ComfortTask.SPACE, immutableCandidate, checked, validStandingSpot, matchesTask);
 
                 if (matchesTask) {
-                    SpaceCandidate spaceCandidate = evaluateSpaceCandidate(origin, immutableCandidate, crowdCenter, "deterministic");
-                    best = chooseBetterSpaceCandidate(best, spaceCandidate);
+                    candidates.add(new SpaceCandidate(immutableCandidate, spaceScore(origin, immutableCandidate, crowdCenter), "deterministic"));
                 }
             }
         }
@@ -687,7 +752,7 @@ public class AnimalComfortGoal extends Goal {
             ).immutable();
             checked++;
             boolean validStandingSpot = isValidStandingSpot(candidate);
-            boolean matchesTask = validStandingSpot && matchesTask(ComfortTask.SPACE, candidate);
+            boolean matchesTask = validStandingSpot && hasOpenSpace(candidate, context);
 
             if (validStandingSpot) {
                 validStandingSpots++;
@@ -696,8 +761,21 @@ public class AnimalComfortGoal extends Goal {
             debugCandidate("random", ComfortTask.SPACE, candidate, checked, validStandingSpot, matchesTask);
 
             if (matchesTask) {
-                SpaceCandidate spaceCandidate = evaluateSpaceCandidate(origin, candidate, crowdCenter, "random");
-                best = chooseBetterSpaceCandidate(best, spaceCandidate);
+                candidates.add(new SpaceCandidate(candidate, spaceScore(origin, candidate, crowdCenter), "random"));
+            }
+        }
+
+        candidates.sort(Comparator.comparingDouble(SpaceCandidate::score).reversed());
+        for (SpaceCandidate candidate : candidates) {
+            if (!canTryAnotherPath()) {
+                break;
+            }
+
+            SpaceCandidate reachableCandidate = evaluateSpaceCandidate(candidate);
+            best = chooseBetterSpaceCandidate(best, reachableCandidate);
+
+            if (best != null || pathSearchDeferred()) {
+                break;
             }
         }
 
@@ -720,16 +798,16 @@ public class AnimalComfortGoal extends Goal {
         return null;
     }
 
-    private SpaceCandidate evaluateSpaceCandidate(BlockPos origin, BlockPos candidate, Vec3 crowdCenter, String phase) {
-        Path path = createPathTo(candidate);
+    private SpaceCandidate evaluateSpaceCandidate(SpaceCandidate candidate) {
+        Path path = createPathTo(candidate.pos());
         if (path == null || !path.canReach()) {
-            debug("candidate rejected phase=" + phase
-                    + " task=space pos=" + posString(candidate)
-                    + " reason=no_path");
+            debug("candidate rejected phase=" + candidate.phase()
+                    + " task=space pos=" + posString(candidate.pos())
+                    + " reason=" + pathRejectReason());
             return null;
         }
 
-        return new SpaceCandidate(candidate, spaceScore(origin, candidate, crowdCenter), phase);
+        return candidate;
     }
 
     private SpaceCandidate chooseBetterSpaceCandidate(SpaceCandidate current, SpaceCandidate candidate) {
@@ -867,17 +945,21 @@ public class AnimalComfortGoal extends Goal {
             return;
         }
 
-        boolean targetStillOpen = isValidStandingSpot(targetPos) && matchesTask(ComfortTask.SPACE, targetPos);
-        boolean shouldRefresh = !targetStillOpen || activeTicks % SPACE_RETARGET_INTERVAL_TICKS == 0 || animal.getNavigation().isDone();
+        int retargetInterval = Salts_animal_farm.CONFIG.comfortSpaceRetargetIntervalTicks();
+        boolean targetStillStandable = isValidStandingSpot(targetPos);
+        boolean intervalElapsed = activeTicks % retargetInterval == 0;
 
-        if (!shouldRefresh) {
+        if (targetStillStandable && !intervalElapsed) {
             return;
         }
 
+        boolean targetStillOpen = targetStillStandable && matchesTask(ComfortTask.SPACE, targetPos);
         BlockPos updatedTarget = findSpaceTarget();
         if (updatedTarget == null) {
             debug(() -> "space target refresh found no open target currentTarget=" + posString(targetPos)
                     + " targetStillOpen=" + targetStillOpen
+                    + " intervalElapsed=" + intervalElapsed
+                    + " pathSearchDeferred=" + pathSearchDeferred()
                     + " currentCheck={" + taskCheckDetails(ComfortTask.SPACE, animal.blockPosition()) + "}"
                     + " targetCheck={" + taskCheckDetails(ComfortTask.SPACE, targetPos) + "}");
             return;
@@ -924,7 +1006,70 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private Path createPathTo(BlockPos pos) {
+        if (!canTryAnotherPath()) {
+            return null;
+        }
+
+        long tick = animal.level().getGameTime();
+        if (pathBudgetTick != tick) {
+            pathBudgetTick = tick;
+            pathBudgetUsedThisTick = 0;
+        }
+
+        if (pathBudgetUsedThisTick >= Salts_animal_farm.CONFIG.comfortPathfindingBudgetPerTick()) {
+            pathBudgetExhausted = true;
+            return null;
+        }
+
+        pathBudgetUsedThisTick++;
+        pathChecksThisSearch++;
         return animal.getNavigation().createPath(pos, 0);
+    }
+
+    private void beginPathSearch() {
+        pathChecksThisSearch = 0;
+        pathBudgetExhausted = false;
+        pathSearchLimitReached = false;
+    }
+
+    private boolean canTryAnotherPath() {
+        if (pathChecksThisSearch >= Salts_animal_farm.CONFIG.comfortMaxPathChecksPerSearch()) {
+            pathSearchLimitReached = true;
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean pathSearchDeferred() {
+        return pathBudgetExhausted || pathSearchLimitReached;
+    }
+
+    private String pathRejectReason() {
+        if (pathBudgetExhausted) {
+            return "path_budget_exhausted";
+        }
+
+        if (pathSearchLimitReached) {
+            return "path_search_limit_reached";
+        }
+
+        return "no_path";
+    }
+
+    private void scheduleDeferredPathRetry(ComfortTask task) {
+        int retryDelay = 20 + animal.getRandom().nextInt(21);
+
+        if (task == ComfortTask.COVER) {
+            nextRainCoverAttemptTick = animal.tickCount + retryDelay;
+        } else {
+            nextAttemptTick = animal.tickCount + retryDelay;
+        }
+
+        debug("scheduleDeferredPathRetry task=" + task.taskName()
+                + " nextAttemptTick=" + nextAttemptTick
+                + " nextRainCoverAttemptTick=" + nextRainCoverAttemptTick
+                + " retryDelay=" + retryDelay);
     }
 
     private boolean isPathExact(Path path, BlockPos pos) {
@@ -967,20 +1112,17 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private boolean hasVisibleScaryMob() {
-        int radius = Salts_animal_farm.CONFIG.effectiveValues(animal.level()).hostileScareRadius();
-        AABB area = animal.getBoundingBox().inflate(radius);
-        return animal.level().hasEntities(
-                EntityTypeTest.forClass(LivingEntity.class),
-                area,
-                entity -> entity != animal
-                        && entity.isAlive()
-                        && SaltsAnimalFarmConfigLists.isScaryMob(entity)
-                        && animal.getSensing().hasLineOfSight(entity)
-        );
+        return FarmAnimalThreatCache.hasVisibleScaryMob(animal);
     }
 
     private boolean canSeeSkyAt(BlockPos pos) {
-        return animal.level().canSeeSky(pos.above()) || animal.level().canSeeSky(pos.above(2));
+        return hasOpenSkyProbe(pos.above()) || hasOpenSkyProbe(pos.above(2));
+    }
+
+    private boolean hasOpenSkyProbe(BlockPos pos) {
+        BlockState state = animal.level().getBlockState(pos);
+        return (state.isAir() || state.canBeReplaced() || state.getCollisionShape(animal.level(), pos).isEmpty())
+                && animal.level().canSeeSky(pos);
     }
 
     private boolean isRainCoverSpot(BlockPos pos) {
@@ -1036,6 +1178,42 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private boolean hasOpenSpace(BlockPos pos) {
+        if (!hasPassableOpenSpaceBlocks(pos)) {
+            return false;
+        }
+
+        AABB animalArea = centeredAabb(pos).inflate(SPACE_CLEAR_RADIUS, 1.5D, SPACE_CLEAR_RADIUS);
+        if (animal.level().hasEntities(
+                net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
+                animalArea,
+                nearbyAnimal -> nearbyAnimal != animal && nearbyAnimal.isAlive()
+        )) {
+            return false;
+        }
+
+        AABB mobArea = centeredAabb(pos).inflate(SPACE_MOB_CLEAR_RADIUS, 1.0D, SPACE_MOB_CLEAR_RADIUS);
+        return !animal.level().hasEntities(
+                net.minecraft.world.level.entity.EntityTypeTest.forClass(Mob.class),
+                mobArea,
+                mob -> mob != animal && mob.isAlive()
+        );
+    }
+
+    private boolean hasOpenSpace(BlockPos pos, SpaceSearchContext context) {
+        if (!hasPassableOpenSpaceBlocks(pos)) {
+            return false;
+        }
+
+        AABB animalArea = centeredAabb(pos).inflate(SPACE_CLEAR_RADIUS, 1.5D, SPACE_CLEAR_RADIUS);
+        if (context.hasAnimalIn(animalArea)) {
+            return false;
+        }
+
+        AABB mobArea = centeredAabb(pos).inflate(SPACE_MOB_CLEAR_RADIUS, 1.0D, SPACE_MOB_CLEAR_RADIUS);
+        return !context.hasMobIn(mobArea);
+    }
+
+    private boolean hasPassableOpenSpaceBlocks(BlockPos pos) {
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
                 BlockPos floor = pos.offset(x, 0, z);
@@ -1046,20 +1224,7 @@ public class AnimalComfortGoal extends Goal {
             }
         }
 
-        AABB area = centeredAabb(pos).inflate(SPACE_MOB_CLEAR_RADIUS, 1.0D, SPACE_MOB_CLEAR_RADIUS);
-        if (animal.level().hasEntities(
-                net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
-                centeredAabb(pos).inflate(SPACE_CLEAR_RADIUS, 1.5D, SPACE_CLEAR_RADIUS),
-                nearbyAnimal -> nearbyAnimal != animal && nearbyAnimal.isAlive()
-        )) {
-            return false;
-        }
-
-        return !animal.level().hasEntities(
-                net.minecraft.world.level.entity.EntityTypeTest.forClass(Mob.class),
-                area,
-                mob -> mob != animal && mob.isAlive()
-        );
+        return true;
     }
 
     private boolean isNapBlock(BlockPos pos) {
@@ -1093,9 +1258,42 @@ public class AnimalComfortGoal extends Goal {
         weightedAnimal.salts_animal_farm$setCurrentComfortTask("");
     }
 
+    private boolean copyRecentComfortOutcome(ComfortTask task) {
+        int radius = Salts_animal_farm.CONFIG.comfortOutcomeCopyRadius();
+        if (radius <= 0) {
+            return false;
+        }
+
+        FarmAnimalComfortResultCache.Entry source = FarmAnimalComfortResultCache.findRecentDirectResultToCopy(animal, radius);
+        if (source == null) {
+            return false;
+        }
+
+        long ageTicks = animal.level().getGameTime() - source.completedTick();
+        debug("copying recent comfort outcome task=" + task.taskName()
+                + " sourceTask=" + source.taskName()
+                + " sourceEntityId=" + source.sourceEntityId()
+                + " sourceUuid=" + source.sourceUuid()
+                + " sourceAgeTicks=" + ageTicks
+                + " result=" + (source.success() ? "success" : "failed")
+                + " radius=" + radius);
+
+        if (source.success()) {
+            recordCopiedTaskSuccess(source);
+        } else {
+            recordCopiedTaskFailure(source);
+        }
+
+        activeTask = null;
+        targetPos = null;
+        targetFriend = null;
+        return true;
+    }
+
     private void recordTaskSuccess(String reason) {
+        String taskName = taskNameOrNull();
         debug("completeTask success reason=" + reason
-                + " task=" + taskNameOrNull()
+                + " task=" + taskName
                 + " target=" + posString(targetPos)
                 + " activeTicks=" + activeTicks
                 + " lingerTicks=" + lingerTicks
@@ -1103,6 +1301,7 @@ public class AnimalComfortGoal extends Goal {
                 + " streakBefore=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
                 + " totalSuccessBefore=" + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks());
         weightedAnimal.salts_animal_farm$recordComfortSuccess();
+        FarmAnimalComfortResultCache.recordDirectResult(animal, taskName, true);
         playTaskSuccessFeedback();
         debug("completeTask recorded success weightAfter=" + weightedAnimal.salts_animal_farm$getWeight()
                 + " streakAfter=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
@@ -1110,8 +1309,42 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private void recordTaskFailure() {
+        String taskName = taskNameOrNull();
         weightedAnimal.salts_animal_farm$recordComfortFailure();
+        if (activeTask != null) {
+            FarmAnimalComfortResultCache.recordDirectResult(animal, taskName, false);
+        }
         playTaskFailureFeedback();
+    }
+
+    private void recordCopiedTaskSuccess(FarmAnimalComfortResultCache.Entry source) {
+        debug("completeTask copied success sourceTask=" + source.taskName()
+                + " sourceEntityId=" + source.sourceEntityId()
+                + " weightBefore=" + weightedAnimal.salts_animal_farm$getWeight()
+                + " streakBefore=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
+                + " totalSuccessBefore=" + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks());
+        weightedAnimal.salts_animal_farm$recordComfortSuccess();
+        weightedAnimal.salts_animal_farm$setLastComfortTaskResult("Copied Success");
+        FarmAnimalComfortResultCache.clearDirectResult(animal);
+        playTaskSuccessFeedback();
+        debug("completeTask copied success recorded weightAfter=" + weightedAnimal.salts_animal_farm$getWeight()
+                + " streakAfter=" + weightedAnimal.salts_animal_farm$getSuccessfulTaskStreak()
+                + " totalSuccessAfter=" + weightedAnimal.salts_animal_farm$getTotalSuccessfulTasks());
+    }
+
+    private void recordCopiedTaskFailure(FarmAnimalComfortResultCache.Entry source) {
+        debug("completeTask copied failure sourceTask=" + source.taskName()
+                + " sourceEntityId=" + source.sourceEntityId()
+                + " weightBefore=" + weightedAnimal.salts_animal_farm$getWeight()
+                + " failedStreakBefore=" + weightedAnimal.salts_animal_farm$getFailedTaskStreak()
+                + " totalFailedBefore=" + weightedAnimal.salts_animal_farm$getTotalFailedTasks());
+        weightedAnimal.salts_animal_farm$recordComfortFailure();
+        weightedAnimal.salts_animal_farm$setLastComfortTaskResult("Copied Failed");
+        FarmAnimalComfortResultCache.clearDirectResult(animal);
+        playTaskFailureFeedback();
+        debug("completeTask copied failure recorded weightAfter=" + weightedAnimal.salts_animal_farm$getWeight()
+                + " failedStreakAfter=" + weightedAnimal.salts_animal_farm$getFailedTaskStreak()
+                + " totalFailedAfter=" + weightedAnimal.salts_animal_farm$getTotalFailedTasks());
     }
 
     private void playTaskSuccessFeedback() {
@@ -1291,31 +1524,6 @@ public class AnimalComfortGoal extends Goal {
         ).size();
     }
 
-    private Vec3 nearbyAnimalCenter(double radius) {
-        AABB area = animal.getBoundingBox().inflate(radius);
-        List<Animal> nearbyAnimals = animal.level().getEntities(
-                net.minecraft.world.level.entity.EntityTypeTest.forClass(Animal.class),
-                area,
-                nearbyAnimal -> nearbyAnimal != animal && nearbyAnimal.isAlive()
-        );
-
-        if (nearbyAnimals.isEmpty()) {
-            return null;
-        }
-
-        double x = 0.0D;
-        double y = 0.0D;
-        double z = 0.0D;
-
-        for (Animal nearbyAnimal : nearbyAnimals) {
-            x += nearbyAnimal.getX();
-            y += nearbyAnimal.getY();
-            z += nearbyAnimal.getZ();
-        }
-
-        return new Vec3(x / nearbyAnimals.size(), y / nearbyAnimals.size(), z / nearbyAnimals.size());
-    }
-
     private int nearbyFriendCount() {
         AABB area = animal.getBoundingBox().inflate(2.25D, 1.0D, 2.25D);
         return animal.level().getEntities(
@@ -1452,5 +1660,56 @@ public class AnimalComfortGoal extends Goal {
     }
 
     private record SpaceCandidate(BlockPos pos, double score, String phase) {
+    }
+
+    private record SpaceSearchContext(List<Animal> animals, List<Mob> mobs, Vec3 crowdCenter) {
+        private static SpaceSearchContext create(Animal animal, int searchRadius, int verticalSearch) {
+            double horizontalInflation = searchRadius + SPACE_MOB_CLEAR_RADIUS + 2.0D;
+            double verticalInflation = verticalSearch + 2.0D;
+            AABB area = animal.getBoundingBox().inflate(horizontalInflation, verticalInflation, horizontalInflation);
+            List<Mob> mobs = animal.level().getEntities(
+                    EntityTypeTest.forClass(Mob.class),
+                    area,
+                    mob -> mob != animal && mob.isAlive()
+            );
+            List<Animal> animals = new ArrayList<>();
+            double x = 0.0D;
+            double y = 0.0D;
+            double z = 0.0D;
+
+            for (Mob mob : mobs) {
+                if (mob instanceof Animal nearbyAnimal) {
+                    animals.add(nearbyAnimal);
+                    x += nearbyAnimal.getX();
+                    y += nearbyAnimal.getY();
+                    z += nearbyAnimal.getZ();
+                }
+            }
+
+            Vec3 crowdCenter = animals.isEmpty()
+                    ? null
+                    : new Vec3(x / animals.size(), y / animals.size(), z / animals.size());
+            return new SpaceSearchContext(animals, mobs, crowdCenter);
+        }
+
+        private boolean hasAnimalIn(AABB area) {
+            for (Animal animal : animals) {
+                if (animal.getBoundingBox().intersects(area)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private boolean hasMobIn(AABB area) {
+            for (Mob mob : mobs) {
+                if (mob.getBoundingBox().intersects(area)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 }

@@ -141,7 +141,7 @@ public final class AnimalFarmDebugCommands {
         List<Animal> animals = level.getEntities(
                 EntityTypeTest.forClass(Animal.class),
                 area,
-                animal -> animal.isAlive() && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                animal -> animal.isAlive() && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)
         );
 
         animals.sort(Comparator.comparingDouble(animal -> animal.distanceToSqr(player)));
@@ -157,7 +157,7 @@ public final class AnimalFarmDebugCommands {
                 start,
                 end,
                 area,
-                entity -> entity instanceof Animal animal && animal.isAlive() && SaltsAnimalFarmConfigLists.isFarmAnimal(animal),
+                entity -> entity instanceof Animal animal && animal.isAlive() && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal),
                 LOOK_DISTANCE * LOOK_DISTANCE
         );
 

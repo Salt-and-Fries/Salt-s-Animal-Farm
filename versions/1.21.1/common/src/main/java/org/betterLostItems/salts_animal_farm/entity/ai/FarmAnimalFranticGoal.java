@@ -23,12 +23,12 @@ public class FarmAnimalFranticGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        return SaltsAnimalFarmConfigLists.isFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
+        return SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
     }
 
     @Override
     public boolean canContinueToUse() {
-        return weightedAnimal.salts_animal_farm$isFrantic();
+        return SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && weightedAnimal.salts_animal_farm$isFrantic();
     }
 
     @Override

@@ -1,17 +1,14 @@
 package org.betterLostItems.salts_animal_farm.mixin;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.WalkNodeEvaluator;
-import net.minecraft.world.phys.AABB;
-import org.betterLostItems.salts_animal_farm.Salts_animal_farm;
 import org.betterLostItems.salts_animal_farm.api.WeightedFarmAnimal;
 import org.betterLostItems.salts_animal_farm.entity.AnimalWeatherComfort;
+import org.betterLostItems.salts_animal_farm.entity.FarmAnimalThreatCache;
 import org.betterLostItems.salts_animal_farm.entity.SaltsAnimalFarmConfigLists;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,13 +27,13 @@ public abstract class WalkNodeEvaluatorMixin {
             CallbackInfoReturnable<BlockPathTypes> cir
     ) {
         if (!(mob instanceof Animal animal)
-                || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)
                 || !(animal instanceof WeightedFarmAnimal weightedAnimal)
                 || weightedAnimal.salts_animal_farm$isFrantic()
                 || animal.hurtTime > 0
                 || !AnimalWeatherComfort.isRainingInRainBiome(animal)
                 || !AnimalWeatherComfort.isFullyCovered(animal)
-                || hasVisibleScaryMob(animal)) {
+                || FarmAnimalThreatCache.hasVisibleScaryMob(animal)) {
             return;
         }
 
@@ -46,15 +43,4 @@ public abstract class WalkNodeEvaluatorMixin {
         }
     }
 
-    private boolean hasVisibleScaryMob(Animal animal) {
-        AABB area = animal.getBoundingBox().inflate(Salts_animal_farm.CONFIG.effectiveValues(animal.level()).hostileScareRadius());
-        return !animal.level().getEntities(
-                EntityTypeTest.forClass(LivingEntity.class),
-                area,
-                entity -> entity != animal
-                        && entity.isAlive()
-                        && SaltsAnimalFarmConfigLists.isScaryMob(entity)
-                        && animal.getSensing().hasLineOfSight(entity)
-        ).isEmpty();
-    }
 }

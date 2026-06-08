@@ -16,6 +16,7 @@ import java.util.List;
 public final class FarmAnimalStateSender {
     private static final int SEND_INTERVAL_TICKS = 10;
     private static final double STATE_RADIUS = 64.0D;
+    private static final int MAX_STATE_ENTRIES = 256;
     private static int tickCounter;
 
     private FarmAnimalStateSender() {
@@ -43,10 +44,13 @@ public final class FarmAnimalStateSender {
         }
 
         AABB area = player.getBoundingBox().inflate(STATE_RADIUS);
-        List<Animal> animals = player.level().getEntities(
+        List<Animal> animals = new ArrayList<>(MAX_STATE_ENTRIES);
+        player.level().getEntities(
                 EntityTypeTest.forClass(Animal.class),
                 area,
-                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                animal -> animal.isAlive() && animal instanceof WeightedFarmAnimal && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal),
+                animals,
+                MAX_STATE_ENTRIES
         );
         List<FarmAnimalStatePayload.Entry> entries = new ArrayList<>(animals.size());
 

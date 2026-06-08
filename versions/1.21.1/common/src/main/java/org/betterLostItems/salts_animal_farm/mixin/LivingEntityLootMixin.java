@@ -26,7 +26,7 @@ public abstract class LivingEntityLootMixin {
 
         if (entity instanceof Animal animal
                 && entity instanceof WeightedFarmAnimal weightedAnimal
-                && SaltsAnimalFarmConfigLists.isFarmAnimal(animal)
+                && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)
                 && weightedAnimal.salts_animal_farm$isSick()) {
             cir.setReturnValue(0);
         }
@@ -44,7 +44,7 @@ public abstract class LivingEntityLootMixin {
     ) {
         LivingEntity entity = (LivingEntity) (Object) this;
 
-        if (!(entity instanceof Animal animal) || !(entity instanceof WeightedFarmAnimal weightedAnimal) || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (!(entity instanceof Animal animal) || !(entity instanceof WeightedFarmAnimal weightedAnimal) || !SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             return;
         }
 

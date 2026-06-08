@@ -49,6 +49,8 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     @Unique
     private static final String CAN_BECOME_SICK = "CanBecomeSick";
     @Unique
+    private static final String BRED = "Bred";
+    @Unique
     private static final Identifier SICK_MOVEMENT_SPEED_ID = Salts_animal_farm.id("sick_movement_speed");
 
     @Unique
@@ -77,6 +79,8 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private String salts_animal_farm$forcedComfortTask;
     @Unique
     private boolean salts_animal_farm$canBecomeSick;
+    @Unique
+    private boolean salts_animal_farm$bred;
 
     @Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
     private void salts_animal_farm$saveWeightData(ValueOutput output, CallbackInfo ci) {
@@ -96,6 +100,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
         data.putInt(SCARE_COOLDOWN_TICKS, salts_animal_farm$getScareCooldownTicks());
         data.putInt(RAIN_EXPOSURE_TICKS, salts_animal_farm$getRainExposureTicks());
         data.putBoolean(CAN_BECOME_SICK, salts_animal_farm$canBecomeSick());
+        data.putBoolean(BRED, salts_animal_farm$wasBred());
     }
 
     @Inject(method = "readAdditionalSaveData", at = @At("TAIL"))
@@ -105,7 +110,9 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
         }
 
         ValueInput data = input.childOrEmpty(SALTS_ANIMAL_FARM_DATA);
-        salts_animal_farm$setCanBecomeSick(data.getBooleanOr(CAN_BECOME_SICK, false));
+        boolean canBecomeSick = data.getBooleanOr(CAN_BECOME_SICK, false);
+        salts_animal_farm$setBred(data.getBooleanOr(BRED, canBecomeSick));
+        salts_animal_farm$setCanBecomeSick(canBecomeSick);
         salts_animal_farm$setWeight(data.getIntOr(WEIGHT, 0));
         salts_animal_farm$setSuccessfulTaskStreak(data.getIntOr(SUCCESSFUL_TASK_STREAK, 0));
         salts_animal_farm$setFailedTaskStreak(data.getIntOr(FAILED_TASK_STREAK, 0));
@@ -123,7 +130,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private void salts_animal_farm$tickFarmAnimalData(ServerLevel level, CallbackInfo ci) {
         Animal animal = (Animal) (Object) this;
 
-        if (!Salts_animal_farm.CONFIG.modEnabled() || !SaltsAnimalFarmConfigLists.isFarmAnimal(animal)) {
+        if (!SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal)) {
             salts_animal_farm$updateSickMovementSpeed(animal, false);
             return;
         }
@@ -171,7 +178,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
         Animal animal = (Animal) (Object) this;
         int clampedWeight = salts_animal_farm$clampWeight(weight);
         salts_animal_farm$weight = clampedWeight;
-        salts_animal_farm$updateSickMovementSpeed(animal, SaltsAnimalFarmConfigLists.isFarmAnimal(animal) && clampedWeight <= 0);
+        salts_animal_farm$updateSickMovementSpeed(animal, SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && clampedWeight <= 0);
     }
 
     @Override
@@ -300,6 +307,16 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     }
 
     @Override
+    public boolean salts_animal_farm$wasBred() {
+        return salts_animal_farm$bred;
+    }
+
+    @Override
+    public void salts_animal_farm$setBred(boolean bred) {
+        salts_animal_farm$bred = bred;
+    }
+
+    @Override
     public SaltsAnimalFarmConfig.EffectiveValues salts_animal_farm$getEffectiveValues() {
         Animal animal = (Animal) (Object) this;
         return Salts_animal_farm.CONFIG.effectiveValues(animal.level());
@@ -309,7 +326,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private void salts_animal_farm$preventSickLove(CallbackInfoReturnable<Boolean> cir) {
         Animal animal = (Animal) (Object) this;
 
-        if (SaltsAnimalFarmConfigLists.isFarmAnimal(animal) && salts_animal_farm$isSick()) {
+        if (SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && salts_animal_farm$isSick()) {
             cir.setReturnValue(false);
         }
     }
@@ -318,13 +335,13 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     private void salts_animal_farm$preventSickMating(Animal other, CallbackInfoReturnable<Boolean> cir) {
         Animal animal = (Animal) (Object) this;
 
-        if (SaltsAnimalFarmConfigLists.isFarmAnimal(animal) && salts_animal_farm$isSick()) {
+        if (SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && salts_animal_farm$isSick()) {
             cir.setReturnValue(false);
             return;
         }
 
         if (other instanceof WeightedFarmAnimal otherWeightedAnimal
-                && SaltsAnimalFarmConfigLists.isFarmAnimal(other)
+                && SaltsAnimalFarmConfigLists.isManagedFarmAnimal(other)
                 && otherWeightedAnimal.salts_animal_farm$isSick()) {
             cir.setReturnValue(false);
         }
@@ -333,6 +350,7 @@ public abstract class AnimalMixin implements WeightedFarmAnimal {
     @Inject(method = "finalizeSpawnChildFromBreeding", at = @At("TAIL"))
     private void salts_animal_farm$allowBredChildSickness(ServerLevel level, Animal otherParent, AgeableMob child, CallbackInfo ci) {
         if (child instanceof Animal childAnimal && child instanceof WeightedFarmAnimal weightedChild && SaltsAnimalFarmConfigLists.isFarmAnimal(childAnimal)) {
+            weightedChild.salts_animal_farm$setBred(true);
             weightedChild.salts_animal_farm$setCanBecomeSick(true);
             weightedChild.salts_animal_farm$setWeight(Math.max(1, weightedChild.salts_animal_farm$getEffectiveValues().minimumWeight()));
         }

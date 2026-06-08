@@ -33,7 +33,7 @@ public class FarmAnimalFleeHostilesGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (!SaltsAnimalFarmConfigLists.isFarmAnimal(animal) || animal.tickCount < nextScanTick) {
+        if (!SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) || animal.tickCount < nextScanTick) {
             return false;
         }
 
@@ -56,7 +56,7 @@ public class FarmAnimalFleeHostilesGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return hostile != null && hostile.isAlive() && !animal.getNavigation().isDone();
+        return SaltsAnimalFarmConfigLists.isManagedFarmAnimal(animal) && hostile != null && hostile.isAlive() && !animal.getNavigation().isDone();
     }
 
     @Override
